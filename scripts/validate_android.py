@@ -109,9 +109,13 @@ def main():
             published=post('versions/'+version+'/publish');manifest=published['manifest']
             for device in ('android-a','android-b'):post('devices',{'device_id':device,'name':device})
             def deploy(vid,request,timeout=10):return post('deployments',{'request_id':request,'playlist_version_id':vid,'device_ids':['android-a'],'timeout_seconds':timeout})
-            first=deploy(version,'android-first',120)
             start_relay()
             adb('install','-r',str(app_apk));adb('install','-r',str(test_apk));adb('shell','pm','clear','com.ap.esop')
+            no_target=subprocess.run([str(ADB),'-s','emulator-5554','shell','am','instrument','-w','-e','class','com.ap.esop.UnassignedConnectionTest','-e','relay_url',f'http://10.0.2.2:{pport}','-e','device_id','android-a','-e','device_key',device_key,'com.ap.esop.test/androidx.test.runner.AndroidJUnitRunner'],capture_output=True,timeout=90)
+            (run/'unassigned-connection.txt').write_bytes(no_target.stdout)
+            assert b'OK (1 test)' in no_target.stdout,'Registered screen without assignment could not connect'
+            record('registered screen with assignment:null and manifest:null connects before first deployment')
+            first=deploy(version,'android-first',120)
             # Device key is ephemeral integration-only; never recorded in logs/evidence.
             command=[str(ADB),'-s','emulator-5554','shell','am','instrument','-w','-e','class','com.ap.esop.PlayerIntegrationTest','-e','relay_url',f'http://10.0.2.2:{pport}','-e','device_id','android-a','-e','device_key',device_key,'com.ap.esop.test/androidx.test.runner.AndroidJUnitRunner']
             process=subprocess.Popen(command,stdout=(run/'instrumentation.txt').open('wb'),stderr=subprocess.STDOUT)

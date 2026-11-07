@@ -74,6 +74,19 @@ class PlayerIntegrationTest {
     }
 }
 
+class UnassignedConnectionTest {
+    @Test fun registeredScreenCanConnectBeforeAnyDeployment()=runBlocking {
+        val args=InstrumentationRegistry.getArguments();assumeTrue(args.getString("relay_url")!=null)
+        val client=RelayClient(args.getString("relay_url")!!,args.getString("device_key")!!)
+        try {
+            var reply:SyncReply?=null
+            repeat(30){if(reply==null)try {reply=client.sync(args.getString("device_id")!!,0)}catch(e:RelayFailure){if(e.status!=404)throw e;kotlinx.coroutines.delay(500)}}
+            assertNotNull(reply);assertNull(reply!!.assignment);assertNull(reply!!.manifest);assertFalse(reply!!.ready)
+        } finally {client.close()}
+        Unit
+    }
+}
+
 class SecondScreenSetupTest {
     @Test fun configureAndStartSecondEmulatedScreen() {
         val args=InstrumentationRegistry.getArguments();assumeTrue(args.getString("device_id")!=null)

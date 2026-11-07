@@ -457,6 +457,23 @@ Windows Python中转及独立Docker中心；无Google Play服务。不是联发�
 频繁重复更新文本影响UI稳定检查等问题，修复后重跑通过。测试与构建日志保存在`test-output/android-tools/`。
 本机中心Web镜像及Windows中转同步更新；原6份发布manifest摘要核对不变，不更改账号密码/目标安排。
 
+## 2026-11-07 Android1.0.1首次连接空清单修复
+
+用户手机照片反馈：首次连接报`Expected a com.google.gson.JsonObject but was JsonNull; at path $.manifest`。
+共享契约允许无安排或缓存未就绪时manifest:null；Gson的JsonObject适配器不因Kotlin可空声明自动接受JSON null。
+修复device/sync读取：显式取出manifest，JSON null归一为Kotlin null，非空仍要求对象，再解析其余字段。
+没有修改中心/中转协议，也不要求先下发资料才能登记/保存配置。
+
+版本1.0.1/code2，新增两项JVM用例验证无安排及等待缓存→清单就绪，现14项通过；Lint 0错误/13警告。
+后台132项通过：`test-output/pytest-android-null-manifest.xml`。构建日志`test-output/android-tools/build-null-manifest.log`。
+双AOSP模拟器→真实Windows中转→Docker中心回归证据：`test-output/android-http/1794041858122720500/`。
+新增`unassigned-connection.txt`验证无下发的assignment:null/manifest:null实际响应可连接；原播放、离线、改派测试一并重跑。
+未进行用户手机远程安装或联发科实机测试；照片仅作为问题证据。
+
+交付`android/dist/AP-ESOP-Player-1.0.1-debug.apk`，SHA256
+`420ebd522d330387c64dc1290453bb029569b6fc95c970e54d5e172436178770`。
+签名验证通过且与1.0.0相同，可覆盖安装保留本地配置/报告序号，不要求卸载。
+
 ## 现场验收建议
 
 1. 在群晖按README部署，确认两个health状态、单Web worker、目录权限和日志轮转。

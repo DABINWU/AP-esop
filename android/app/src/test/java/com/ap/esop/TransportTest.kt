@@ -12,6 +12,24 @@ class TransportTest {
     @get:Rule val folder=TemporaryFolder()
     private val bytes="0123456789ABCDEFGHIJ".toByteArray()
     private fun file()=MediaFile("file_test","/api/v1/files/file_test","video/mp4",bytes.size.toLong(),Wire.sha(bytes),"video",null)
+    @Test fun syncWithoutAssignmentAcceptsExplicitNullManifest()=runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setBody("""{"server_time":"2026-11-07T00:00:00Z","heartbeat_seconds":10,"assignment":null,"manifest":null,"manifest_sha256":null,"ready":false,"error":null,"report_seq_floor":0}"""))
+            val client=RelayClient(server.url("").toString().trimEnd('/'),"test-key")
+            val reply=client.sync("screen-new",0)
+            assertNull(reply.assignment);assertNull(reply.manifest);assertFalse(reply.ready);client.close()
+        }
+    }
+    @Test fun syncPendingAssignmentAcceptsNullManifestThenReadyObject()=runBlocking {
+        MockWebServer().use { server ->
+            val assignment="""{"device_id":"screen-new","assignment_revision":1,"playlist_version_id":"ver_1","task_id":"task_1","assigned_at":"2026-11-07T00:00:00Z","relay_acked_at":null}"""
+            server.enqueue(MockResponse().setBody("""{"server_time":"2026-11-07T00:00:00Z","heartbeat_seconds":10,"assignment":$assignment,"manifest":null,"ready":false,"error":"preparing","report_seq_floor":0}"""))
+            server.enqueue(MockResponse().setBody("""{"server_time":"2026-11-07T00:00:00Z","heartbeat_seconds":10,"assignment":$assignment,"manifest":{"schema_version":2},"ready":true,"report_seq_floor":0}"""))
+            val client=RelayClient(server.url("").toString().trimEnd('/'),"test-key")
+            val pending=client.sync("screen-new",0);assertNull(pending.manifest);assertEquals(1L,pending.assignment!!.assignmentRevision)
+            val ready=client.sync("screen-new",1);assertTrue(ready.ready);assertEquals(2,ready.manifest!!.get("schema_version").asInt);client.close()
+        }
+    }
     @Test fun resume206ValidatesRangeAndHash()=runBlocking {
         MockWebServer().use { server ->
             server.enqueue(MockResponse().setResponseCode(206).addHeader("Content-Range","bytes 5-19/20").setBody(String(bytes.drop(5).toByteArray())))

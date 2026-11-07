@@ -34,7 +34,13 @@ class RelayClient(val url:String,private val accessKey:String,private val http:O
             JsonParser.parseString(String(bytes,Charsets.UTF_8)).asJsonObject
         } } finally { cancel.dispose() }
     }
-    suspend fun sync(deviceId:String,known:Long):SyncReply=Wire.gson.fromJson(json("/api/v1/device/sync",mapOf("device_id" to deviceId,"known_assignment_revision" to known)),SyncReply::class.java)
+    suspend fun sync(deviceId:String,known:Long):SyncReply {
+        val raw=json("/api/v1/device/sync",mapOf("device_id" to deviceId,"known_assignment_revision" to known))
+        // Gson's JsonObject adapter rejects explicit JSON null, even for a nullable Kotlin property.
+        val manifest=raw.remove("manifest")?.takeUnless { it.isJsonNull }
+        require(manifest==null || manifest.isJsonObject) { "中转播放清单格式无效" }
+        return Wire.gson.fromJson(raw,SyncReply::class.java).copy(manifest=manifest?.asJsonObject)
+    }
     suspend fun activation(a:Assignment):Boolean {
         val result=json("/api/v1/device/activation-check",mapOf("device_id" to a.deviceId,"assignment_revision" to a.assignmentRevision,"playlist_version_id" to a.playlistVersionId))
         val returned=Wire.gson.fromJson(result.get("assignment"),Assignment::class.java)

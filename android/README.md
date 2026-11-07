@@ -27,6 +27,7 @@ $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 Android Studio打开本目录即可；SDK路径写本机local.properties的sdk.dir，或配置ANDROID_HOME。
 Linux/macOS可chmod +x gradlew后执行./gradlew。Debug产物：app/build/outputs/apk/debug/app-debug.apk。
 本机交付副本：[AP-ESOP-Player-debug.apk](dist/AP-ESOP-Player-debug.apk)，生成文件不提交Git，重新构建可恢复。
+1.0.1/code2修复首次连接无下发资料时manifest:null解析失败；旧版可直接覆盖安装，保持原签名，不必卸载或清除数据。
 Debug以本机构建密钥签名，仅用于验证；后续更新必须保持同一签名，生产签名密钥应由管理员专门保管，不提交仓库。
 卸载/清除App数据会丢失设备序号，不能用原device_id静默重新登记。
 
