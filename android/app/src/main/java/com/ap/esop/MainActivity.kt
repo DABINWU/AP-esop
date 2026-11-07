@@ -1,6 +1,6 @@
 package com.ap.esop
 
-import android.Manifest
+import android.Manifest as AndroidPermissions
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -196,7 +196,7 @@ class MainActivity:ComponentActivity(),PlayerScreen {
                 require(reply.reportSeqFloor<=seq){"此编号已被其他安装使用，请登记新编号"}
                 withContext(Dispatchers.IO){app.settings.save(candidate)}
                 secret.text.clear();pin.text.clear();confirm.text.clear();dialog.dismiss()
-                if(candidate.bootEnabled && Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),1)
+                if(candidate.bootEnabled && Build.VERSION.SDK_INT>=33 && checkSelfPermission(AndroidPermissions.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(arrayOf(AndroidPermissions.permission.POST_NOTIFICATIONS),1)
                 begin(candidate)
             } catch(e:Exception){feedback.text=e.message ?: "保存失败，请检查中转连接"}
         }} };dialog.show()
