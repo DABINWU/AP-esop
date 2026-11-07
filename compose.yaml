@@ -1,0 +1,59 @@
+x-center: &center
+  image: ap-esop-center:v1
+  build: .
+  restart: unless-stopped
+  init: true
+  user: "10001:10001"
+  read_only: true
+  tmpfs:
+    - /tmp:rw,nosuid,nodev,size=512m,mode=1777
+    - /home/esop:rw,nosuid,nodev,size=64m,uid=10001,gid=10001
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  volumes:
+    - ${ESOP_DATA_DIR:-./data}:/data
+  environment: &environment
+    DATA_DIR: /data
+    ADMIN_API_KEY: ${ADMIN_API_KEY:?Set ADMIN_API_KEY in .env}
+    RELAY_API_KEY: ${RELAY_API_KEY:?Set RELAY_API_KEY in .env}
+    RELAY_ID: ${RELAY_ID:-workshop-1}
+    HEARTBEAT_SECONDS: ${HEARTBEAT_SECONDS:-10}
+    OFFLINE_SECONDS: ${OFFLINE_SECONDS:-40}
+    UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
+    VIDEO_MAX_MB: ${VIDEO_MAX_MB:-200}
+    VIDEO_MAX_SECONDS: ${VIDEO_MAX_SECONDS:-180}
+    CONVERSION_TIMEOUT_SECONDS: ${CONVERSION_TIMEOUT_SECONDS:-120}
+    MAX_PAGES: ${MAX_PAGES:-200}
+    PAGE_WARNING_COUNT: ${PAGE_WARNING_COUNT:-30}
+    RENDER_DPI: ${RENDER_DPI:-160}
+    AUTH_SESSION_HOURS: ${AUTH_SESSION_HOURS:-12}
+    AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+    FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+services:
+  web:
+    <<: *center
+    ports:
+      - "${ESOP_BIND_IP:-0.0.0.0}:${ESOP_PORT:-8080}:8080"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+  worker:
+    <<: *center
+    command: [python, -m, center.worker]
+    # No outgoing network: conversion cannot fetch external data or contact workshop.
+    network_mode: none
+    mem_limit: 2g
+    pids_limit: 128
+    stop_grace_period: 20s
+    healthcheck:
+      test: [CMD, python, -c, "import os,time; assert time.time()-os.path.getmtime('/data/worker-heartbeat') < int(os.getenv('CONVERSION_TIMEOUT_SECONDS','120'))*2+90"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

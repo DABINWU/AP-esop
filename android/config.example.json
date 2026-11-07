@@ -1,0 +1,9 @@
+{
+  "implementation_status": "contract_only_not_an_app",
+  "relay_base_url": "https://relay.example.internal:8090",
+  "device_id": "screen-01",
+  "device_api_key": "inject-from-provisioning-not-from-this-example",
+  "heartbeat_seconds": 10,
+  "offline_seconds": 40,
+  "local_cache_directory": "app-private-storage/esop"
+}

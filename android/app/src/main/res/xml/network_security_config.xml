@@ -1,0 +1,4 @@
+<network-security-config>
+    <!-- V1 user-configured workshop LAN address can use HTTP. TLS still uses system CAs, never trust-all. -->
+    <base-config cleartextTrafficPermitted="true"><trust-anchors><certificates src="system"/></trust-anchors></base-config>
+</network-security-config>
