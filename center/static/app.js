@@ -84,7 +84,7 @@ function renderPlaylists(){
     const list=versions.filter(v=>v.playlist_id===p.id&&!v.archived_at).sort((a,b)=>b.version-a.version);
     actions.append(button('进入资料',()=>{if(dirty&&!confirm('放弃未保存改动并切换资料条目？'))return;chooseVersion(list[0]);renderVersionSelectors();$('editor').scrollIntoView({block:'start',behavior:'smooth'});}));
     const remove=button('删除',async()=>{if(!confirm(`删除资料条目“${p.name}”？\n活动屏幕引用会阻止删除；发布历史会归档保留；无发布历史的专属文件将清理。`))return;const result=await json('/playlists/'+p.id,{method:'DELETE'});if(current?.playlist_id===p.id)chooseVersion(null);await refresh();notice(result.cleanup_pending.length?'资料条目已归档，部分文件清理未完成，系统会重试。':(result.retained_history?'资料条目已删除归档，发布历史及文件保留。':'资料条目及无引用专属文件已删除。'));});remove.className='danger';actions.append(remove);
-    tr.append(node('td',p.task_number || '—'),name,node('td',list[0]?.status==='draft'?(list.some(v=>v.status==='published')?'有待发布修改':'待发布'):'已发布'),actions);$('playlist-list').append(tr);
+    tr.append(name,node('td',p.task_number || '—'),node('td',list[0]?.status==='draft'?(list.some(v=>v.status==='published')?'有待发布修改':'待发布'):'已发布'),actions);$('playlist-list').append(tr);
   }
 }
 $('refresh').onclick = safe(refresh);
@@ -153,7 +153,7 @@ function renderDeploymentTable(){
   for(const {p,v} of result.rows){const tr=node('tr'),choice=node('td'),radio=node('input');radio.type='radio';radio.name='deployment-choice';radio.value=v.id;radio.checked=v.id===selectedDeployment;radio.setAttribute('aria-label','选择 '+p.name);radio.onchange=()=>{selectedDeployment=v.id;renderDeploymentTable();};choice.append(radio);
     const title=node('td',p.name);if(p.description)title.append(node('small',p.description));
     const newer=versions.some(x=>x.playlist_id===p.id&&!x.archived_at&&x.status==='draft'&&x.version>v.version);
-    tr.className=radio.checked?'selected-row':'';tr.append(choice,node('td',p.task_number||'—'),title,node('td',v.published_at?new Date(v.published_at).toLocaleString():'—'),node('td',String(v.items.length)),node('td',newer?'已发布 · 有待发布修改':'已发布'));$('deploy-list').append(tr);}
+    tr.className=radio.checked?'selected-row':'';tr.append(choice,title,node('td',p.task_number||'—'),node('td',v.published_at?new Date(v.published_at).toLocaleString():'—'),node('td',String(v.items.length)),node('td',newer?'已发布 · 有待发布修改':'已发布'));$('deploy-list').append(tr);}
   if(!result.rows.length){const tr=node('tr'),td=node('td',available.length?'没有匹配的资料。':'暂无可下发资料，请先在工艺资料库发布。');td.colSpan=6;tr.append(td);$('deploy-list').append(tr);}
 }
 $('library-search').oninput=()=>{libraryPage=1;renderPlaylists();};

@@ -80,8 +80,15 @@ def main():
     checks=[]
     def record(check,**details):checks.append(dict(check=check,**details));print(check,flush=True)
     def screen(name):
-        adb('shell','rm','-f','/sdcard/esop-ui.xml')
-        text=adb('shell','uiautomator','dump','/sdcard/esop-ui.xml');xml=adb('shell','cat','/sdcard/esop-ui.xml').decode('utf-8',errors='replace')
+        xml=None
+        for attempt in range(3):
+            adb('shell','rm','-f','/sdcard/esop-ui.xml')
+            subprocess.run([str(ADB),'-s','emulator-5554','shell','uiautomator','dump','/sdcard/esop-ui.xml'],capture_output=True,timeout=40)
+            result=subprocess.run([str(ADB),'-s','emulator-5554','shell','cat','/sdcard/esop-ui.xml'],capture_output=True,timeout=20)
+            if result.returncode==0 and b'<hierarchy' in result.stdout:
+                xml=result.stdout.decode('utf-8',errors='replace');break
+            time.sleep(1)
+        assert xml is not None,'Android UI snapshot unavailable after retries'
         data=adb('exec-out','screencap','-p');(run/(name+'.png')).write_bytes(data)
         (run/(name+'.xml')).write_text(xml,encoding='utf-8');return xml
     try:

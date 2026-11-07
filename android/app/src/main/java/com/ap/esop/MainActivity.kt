@@ -60,30 +60,40 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         super.onCreate(savedInstanceState)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility=View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        val root=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.rgb(20,34,77))}
+        val root=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;setBackgroundColor(Color.rgb(20,34,77));tag="player-root"}
+        val rail=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(8),dp(8),dp(8),dp(8));tag="control-rail"}
+        val scroll=ScrollView(this).apply {isFillViewport=true;addView(rail);tag="control-scroll"}
         val header=LinearLayout(this).apply {gravity=Gravity.CENTER_VERTICAL}
         header.addView(ImageView(this).apply {setImageResource(R.drawable.company_logo);setPadding(dp(5),dp(5),dp(5),dp(5));setOnLongClickListener{admin();true}},LinearLayout.LayoutParams(dp(52),dp(52)))
-        title=text("艾普 ESOP · 等待下发",20f);title.tag="title";title.setOnLongClickListener{admin();true};header.addView(title,LinearLayout.LayoutParams(0,dp(52),1f))
-        header.addView(button("管理员"){admin()},LinearLayout.LayoutParams(dp(105),dp(48)))
-        root.addView(header)
-        status=text("首次配置后连接车间中转",13f);status.tag="status";root.addView(status,LinearLayout.LayoutParams(-1,dp(35)))
-        val frame=FrameLayout(this).apply {setBackgroundColor(Color.WHITE)}
+        title=text("艾普 ESOP · 等待下发",18f);title.tag="title";title.maxLines=3;title.ellipsize=android.text.TextUtils.TruncateAt.END;title.setOnLongClickListener{admin();true};header.addView(title,LinearLayout.LayoutParams(0,-2,1f))
+        rail.addView(header,LinearLayout.LayoutParams(-1,-2))
+        status=text("首次配置后连接车间中转",12f).apply {setPadding(dp(6),dp(10),dp(6),dp(10))};status.tag="status";rail.addView(status,LinearLayout.LayoutParams(-1,-2))
+        val frame=FrameLayout(this).apply {setBackgroundColor(Color.WHITE);tag="media-frame"}
         image=TouchImageView(this).apply {tag="image";onZoom={engine?.setPaused(true)}}
         playerView=PlayerView(this).apply {useController=false;resizeMode=AspectRatioFrameLayout.RESIZE_MODE_FIT;setKeepContentOnPlayerReset(true);visibility=View.GONE}
         frame.addView(image,FrameLayout.LayoutParams(-1,-1));frame.addView(playerView,FrameLayout.LayoutParams(-1,-1))
         overlay=text("等待下发",24f).apply {gravity=Gravity.CENTER;setTextColor(Color.rgb(40,65,110));setBackgroundColor(Color.WHITE)}
-        frame.addView(overlay,FrameLayout.LayoutParams(-1,-1));root.addView(frame,LinearLayout.LayoutParams(-1,0,1f))
-        itemLabel=text("—",14f);itemLabel.tag="item-label";root.addView(itemLabel,LinearLayout.LayoutParams(-1,dp(28)))
-        val categories=LinearLayout(this)
-        modules.forEach { (id,label)->val b=button(label){engine?.category(id)};b.tag="module-$id";moduleButtons[id]=b;categories.addView(b,LinearLayout.LayoutParams(0,dp(48),1f)) }
-        root.addView(categories)
-        val controls=LinearLayout(this)
-        controls.addView(button("上一项"){engine?.move(-1)}.apply {tag="previous"},LinearLayout.LayoutParams(0,dp(56),1f))
-        pauseButton=button("暂停"){engine?.togglePause()};pauseButton.tag="pause";controls.addView(pauseButton,LinearLayout.LayoutParams(0,dp(56),1f))
-        controls.addView(button("下一项 / 跳过"){engine?.move(1)}.apply {tag="next"},LinearLayout.LayoutParams(0,dp(56),1f))
-        controls.addView(button("重播当前项"){engine?.replay()}.apply {tag="replay"},LinearLayout.LayoutParams(0,dp(56),1f))
-        controls.addView(button("退出放大"){image.resetZoom()}.apply {tag="zoom-exit"},LinearLayout.LayoutParams(0,dp(56),1f))
-        root.addView(controls);setContentView(root)
+        frame.addView(overlay,FrameLayout.LayoutParams(-1,-1));root.addView(frame,LinearLayout.LayoutParams(0,-1,1f))
+        itemLabel=text("—",14f).apply {setPadding(dp(6),dp(6),dp(6),dp(12))};itemLabel.tag="item-label";rail.addView(itemLabel,LinearLayout.LayoutParams(-1,-2))
+        fun row(vararg views:View) {
+            val line=LinearLayout(this)
+            views.forEach {
+                if(it is Button){it.textSize=14f;it.setPadding(dp(4),dp(4),dp(4),dp(4));it.maxLines=2;it.includeFontPadding=false}
+                line.addView(it,LinearLayout.LayoutParams(0,dp(56),1f).apply {setMargins(dp(2),dp(2),dp(2),dp(2))})
+            }
+            rail.addView(line,LinearLayout.LayoutParams(-1,-2))
+        }
+        val categories=modules.map { (id,label)->button(label){engine?.category(id)}.apply {tag="module-$id";moduleButtons[id]=this} }
+        row(categories[0],categories[1]);row(categories[2],categories[3])
+        rail.addView(text("播放操作",12f).apply {setPadding(dp(6),dp(12),dp(6),dp(4))},LinearLayout.LayoutParams(-1,-2))
+        pauseButton=button("暂停"){engine?.togglePause()};pauseButton.tag="pause"
+        row(button("上一项"){engine?.move(-1)}.apply {tag="previous"},button("下一项"){engine?.move(1)}.apply {tag="next"})
+        row(pauseButton,button("重播当前项"){engine?.replay()}.apply {tag="replay"})
+        row(button("退出放大"){image.resetZoom()}.apply {tag="zoom-exit"})
+        rail.addView(View(this),LinearLayout.LayoutParams(1,0,1f))
+        rail.addView(button("管理员"){admin()},LinearLayout.LayoutParams(-1,dp(52)))
+        val railWidth=dp((resources.configuration.screenWidthDp*.22f).toInt().coerceIn(176,280))
+        root.addView(scroll,LinearLayout.LayoutParams(railWidth,-1));setContentView(root)
         onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){admin()}})
     }
     override fun onStart() {

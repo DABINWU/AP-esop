@@ -39,6 +39,19 @@ class PlayerIntegrationTest {
             fun click(tag:String){scenario.onActivity {check(it.window.decorView.findViewWithTag<android.view.View>(tag)?.performClick()==true)}}
             fun waitFor(timeout:Long=60000,check:()->Boolean){val until=SystemClock.elapsedRealtime()+timeout;while(SystemClock.elapsedRealtime()<until){if(check())return;Thread.sleep(150)};assertTrue("Timed out: ${value("status")}",check())}
             waitFor {value("title").contains("安卓联调") && value("status").contains("安排已核对")}
+            scenario.onActivity { activity ->
+                val root=activity.window.decorView.findViewWithTag<android.view.View>("player-root")
+                val media=activity.window.decorView.findViewWithTag<android.view.View>("media-frame")
+                val rail=activity.window.decorView.findViewWithTag<android.view.View>("control-scroll")
+                assertEquals(0,media.top);assertEquals(root.height,media.height)
+                assertEquals(media.right,rail.left);assertTrue(media.width>rail.width)
+                val railBounds=android.graphics.Rect();rail.getGlobalVisibleRect(railBounds)
+                for(tag in listOf("title","status","item-label","previous","next","pause","replay","zoom-exit","module-production","module-inspection","module-check_video","module-custom")) {
+                    val view=activity.window.decorView.findViewWithTag<android.view.View>(tag)
+                    val position=IntArray(2);view.getLocationOnScreen(position)
+                    assertTrue("$tag outside right control rail",position[0]>=railBounds.left && position[0]+view.width<=railBounds.right)
+                }
+            }
             if(value("pause")=="暂停")click("pause")
             assertEquals("继续",value("pause"));val held=value("item-label");Thread.sleep(4500);assertEquals(held,value("item-label"))
             click("next");waitFor {value("item-label")!=held};assertEquals("继续",value("pause"))
