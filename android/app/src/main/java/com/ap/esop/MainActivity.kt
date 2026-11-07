@@ -13,15 +13,21 @@ import android.text.InputType
 import android.view.*
 import android.widget.*
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.common.Timeline
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class MainActivity:ComponentActivity(),PlayerScreen {
     private val app get()=application as PlayerApplication
     private var engine:PlayerEngine?=null
@@ -44,38 +50,41 @@ class MainActivity:ComponentActivity(),PlayerScreen {
     private var activeItem:PlayItem?=null
     private var started=false
     private var settingsOpen=false
+    private val decodeLock=Mutex()
+    private var expectedMediaId=""
     private fun dp(value:Int)=(value*resources.displayMetrics.density).toInt()
     private fun text(value:String,size:Float=16f)=TextView(this).apply {text=value;textSize=size;setTextColor(Color.WHITE);gravity=Gravity.CENTER_VERTICAL;setPadding(dp(10),0,dp(10),0)}
-    private fun button(value:String,action:()->Unit)=Button(this).apply {text=value;textSize=16f;isAllCaps=false;minHeight=dp(48);setOnClickListener {action()} }
+    private fun button(value:String,action:()->Unit)=Button(this).apply {text=value;textSize=16f;isAllCaps=false;minHeight=dp(48);setTextColor(Color.WHITE);setTypeface(null,android.graphics.Typeface.BOLD);backgroundTintList=android.content.res.ColorStateList.valueOf(Color.rgb(40,87,189));setOnClickListener {action()} }
+    private fun TextView.setIfChanged(value:String){if(text.toString()!=value)text=value}
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility=View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         val root=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setBackgroundColor(Color.rgb(20,34,77))}
         val header=LinearLayout(this).apply {gravity=Gravity.CENTER_VERTICAL}
         header.addView(ImageView(this).apply {setImageResource(R.drawable.company_logo);setPadding(dp(5),dp(5),dp(5),dp(5));setOnLongClickListener{admin();true}},LinearLayout.LayoutParams(dp(52),dp(52)))
-        title=text("艾普 ESOP · 等待下发",20f);title.setOnLongClickListener{admin();true};header.addView(title,LinearLayout.LayoutParams(0,dp(52),1f))
+        title=text("艾普 ESOP · 等待下发",20f);title.tag="title";title.setOnLongClickListener{admin();true};header.addView(title,LinearLayout.LayoutParams(0,dp(52),1f))
         header.addView(button("管理员"){admin()},LinearLayout.LayoutParams(dp(105),dp(48)))
         root.addView(header)
-        status=text("首次配置后连接车间中转",13f);root.addView(status,LinearLayout.LayoutParams(-1,dp(35)))
+        status=text("首次配置后连接车间中转",13f);status.tag="status";root.addView(status,LinearLayout.LayoutParams(-1,dp(35)))
         val frame=FrameLayout(this).apply {setBackgroundColor(Color.WHITE)}
-        image=TouchImageView(this).apply {onZoom={engine?.setPaused(true)}}
+        image=TouchImageView(this).apply {tag="image";onZoom={engine?.setPaused(true)}}
         playerView=PlayerView(this).apply {useController=false;resizeMode=AspectRatioFrameLayout.RESIZE_MODE_FIT;setKeepContentOnPlayerReset(true);visibility=View.GONE}
         frame.addView(image,FrameLayout.LayoutParams(-1,-1));frame.addView(playerView,FrameLayout.LayoutParams(-1,-1))
         overlay=text("等待下发",24f).apply {gravity=Gravity.CENTER;setTextColor(Color.rgb(40,65,110));setBackgroundColor(Color.WHITE)}
         frame.addView(overlay,FrameLayout.LayoutParams(-1,-1));root.addView(frame,LinearLayout.LayoutParams(-1,0,1f))
-        itemLabel=text("—",14f);root.addView(itemLabel,LinearLayout.LayoutParams(-1,dp(28)))
+        itemLabel=text("—",14f);itemLabel.tag="item-label";root.addView(itemLabel,LinearLayout.LayoutParams(-1,dp(28)))
         val categories=LinearLayout(this)
-        modules.forEach { (id,label)->val b=button(label){engine?.category(id)};moduleButtons[id]=b;categories.addView(b,LinearLayout.LayoutParams(0,dp(48),1f)) }
+        modules.forEach { (id,label)->val b=button(label){engine?.category(id)};b.tag="module-$id";moduleButtons[id]=b;categories.addView(b,LinearLayout.LayoutParams(0,dp(48),1f)) }
         root.addView(categories)
         val controls=LinearLayout(this)
-        controls.addView(button("上一项"){engine?.move(-1)},LinearLayout.LayoutParams(0,dp(56),1f))
-        pauseButton=button("暂停"){engine?.togglePause()};controls.addView(pauseButton,LinearLayout.LayoutParams(0,dp(56),1f))
-        controls.addView(button("下一项 / 跳过"){engine?.move(1)},LinearLayout.LayoutParams(0,dp(56),1f))
-        controls.addView(button("重播当前项"){engine?.replay()},LinearLayout.LayoutParams(0,dp(56),1f))
-        controls.addView(button("退出放大"){image.resetZoom()},LinearLayout.LayoutParams(0,dp(56),1f))
+        controls.addView(button("上一项"){engine?.move(-1)}.apply {tag="previous"},LinearLayout.LayoutParams(0,dp(56),1f))
+        pauseButton=button("暂停"){engine?.togglePause()};pauseButton.tag="pause";controls.addView(pauseButton,LinearLayout.LayoutParams(0,dp(56),1f))
+        controls.addView(button("下一项 / 跳过"){engine?.move(1)}.apply {tag="next"},LinearLayout.LayoutParams(0,dp(56),1f))
+        controls.addView(button("重播当前项"){engine?.replay()}.apply {tag="replay"},LinearLayout.LayoutParams(0,dp(56),1f))
+        controls.addView(button("退出放大"){image.resetZoom()}.apply {tag="zoom-exit"},LinearLayout.LayoutParams(0,dp(56),1f))
         root.addView(controls);setContentView(root)
+        onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){admin()}})
     }
     override fun onStart() {
         super.onStart();started=true
@@ -100,9 +109,12 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         return ExoPlayer.Builder(this).build().also { value ->
             player=value;playerView.player=value
             value.addListener(object:Player.Listener {
-                override fun onRenderedFirstFrame(){firstFrame?.let {firstFrame=null;it()}}
-                override fun onPlaybackStateChanged(playbackState:Int){if(playbackState==Player.STATE_ENDED)ended?.invoke()}
-                override fun onPlayerError(error:PlaybackException){failed?.invoke("视频无法播放（${error.errorCodeName}）")}
+                override fun onPlaybackStateChanged(playbackState:Int){if(playbackState==Player.STATE_ENDED && value.playbackState==Player.STATE_ENDED)ended?.invoke()}
+            })
+            value.addAnalyticsListener(object:AnalyticsListener {
+                fun matches(event:AnalyticsListener.EventTime):Boolean = !event.timeline.isEmpty && event.windowIndex in 0 until event.timeline.windowCount && event.timeline.getWindow(event.windowIndex,Timeline.Window()).mediaItem.mediaId==expectedMediaId
+                override fun onRenderedFirstFrame(eventTime:AnalyticsListener.EventTime,output:Any,renderTimeMs:Long){if(matches(eventTime))firstFrame?.let{firstFrame=null;it()}}
+                override fun onPlayerError(eventTime:AnalyticsListener.EventTime,error:PlaybackException){if(matches(eventTime))failed?.invoke("视频无法播放（${error.errorCodeName}）")}
             })
         }
     }
@@ -114,17 +126,17 @@ class MainActivity:ComponentActivity(),PlayerScreen {
             val p=ensurePlayer();p.stop();p.clearMediaItems()
             this.firstFrame={if(generation==renderGeneration)ready()}
             this.ended={if(generation==renderGeneration)ended()};this.failed={if(generation==renderGeneration)failed(it)}
-            p.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)));p.prepare();p.seekTo(position);p.playWhenReady=!paused
+            expectedMediaId=generation.toString();p.setMediaItem(MediaItem.Builder().setMediaId(expectedMediaId).setUri(Uri.fromFile(file)).build());p.prepare();p.seekTo(position);p.playWhenReady=!paused
         } else {
             player?.pause();player?.stop();player?.clearMediaItems()
             decodeJob=uiScope.launch {
                 try {
-                    val bitmap=withContext(Dispatchers.IO) {
+                    val bitmap=withContext(Dispatchers.IO) { decodeLock.withLock {
                         val bounds=BitmapFactory.Options().apply {inJustDecodeBounds=true};BitmapFactory.decodeFile(file.path,bounds)
                         check(bounds.outWidth>0 && bounds.outHeight>0) {"图片无法解码"}
                         var sample=1;while(bounds.outWidth.toLong()*bounds.outHeight/(sample.toLong()*sample)>4_000_000 || bounds.outWidth/sample>4096 || bounds.outHeight/sample>4096)sample*=2
                         BitmapFactory.decodeFile(file.path,BitmapFactory.Options().apply {inSampleSize=sample;inPreferredConfig=android.graphics.Bitmap.Config.ARGB_8888}) ?: error("图片加载失败")
-                    }
+                    } }
                     if(generation!=renderGeneration || !started){bitmap.recycle();return@launch}
                     playerView.visibility=View.GONE;image.visibility=View.VISIBLE;overlay.visibility=View.GONE
                     image.display(bitmap){if(generation==renderGeneration)ready()}
@@ -135,16 +147,17 @@ class MainActivity:ComponentActivity(),PlayerScreen {
     override fun pause(paused:Boolean) {if(activeItem?.type=="video")player?.playWhenReady=!paused}
     override fun videoPosition()=if(activeItem?.type=="video")player?.currentPosition ?: 0 else 0
     override fun update(manifest:Manifest?,category:String,index:Int,paused:Boolean,status:String,error:String?,progress:Progress?) {
-        title.text=manifest?.name ?: "艾普 ESOP · 等待下发"
-        this.status.text=buildString {append(status);if(progress!=null)append(" · 下载 ${progress.completedFiles}/${progress.totalFiles}（${progress.receivedBytes*100/progress.totalBytes.coerceAtLeast(1)}%）");if(error!=null)append(" · $error")}
-        pauseButton.text=if(paused)"继续" else "暂停"
+        title.setIfChanged(manifest?.name ?: "艾普 ESOP · 等待下发")
+        this.status.setIfChanged(buildString {append(status);if(progress!=null)append(" · 下载 ${progress.completedFiles}/${progress.totalFiles}（${progress.receivedBytes*100/progress.totalBytes.coerceAtLeast(1)}%）");if(error!=null)append(" · $error")})
+        pauseButton.setIfChanged(if(paused)"继续" else "暂停")
         val count=manifest?.moduleItems(category)?.size ?: 0
-        itemLabel.text=if(count>0)"${modules[category]} · ${index+1} / $count"+(if(paused)" · 已暂停" else " · 循环播放") else "等待下发"
-        moduleButtons.forEach { (id,b)->val size=manifest?.moduleItems(id)?.size ?: 0;b.text="${modules[id]} ($size)";b.isEnabled=size>0;b.alpha=if(id==category)1f else .7f }
-        if(manifest==null){overlay.text=error ?: "等待下发";overlay.visibility=View.VISIBLE}
+        itemLabel.setIfChanged(if(count>0)"${modules[category]} · ${index+1} / $count"+(if(paused)" · 已暂停" else " · 循环播放") else "等待下发")
+        moduleButtons.forEach { (id,b)->val size=manifest?.moduleItems(id)?.size ?: 0;b.setIfChanged("${modules[id]} ($size)");if(b.isEnabled!=(size>0))b.isEnabled=size>0
+            val selected=id==category;if(b.isSelected!=selected){b.isSelected=selected;b.backgroundTintList=android.content.res.ColorStateList.valueOf(if(selected)Color.rgb(40,87,189) else Color.rgb(49,69,109))}
+            val opacity=if(size==0).35f else if(selected)1f else .8f;if(b.alpha!=opacity)b.alpha=opacity
+        }
+        if(manifest==null){overlay.setIfChanged(error ?: "等待下发");overlay.visibility=View.VISIBLE}
     }
-    @Deprecated("Back exits only through administrator settings")
-    override fun onBackPressed(){admin()}
     private fun admin() {
         if(settingsOpen)return
         val config=try{app.settings.load()}catch(e:Exception){null}
@@ -156,7 +169,7 @@ class MainActivity:ComponentActivity(),PlayerScreen {
                 val valid=withContext(Dispatchers.IO){app.settings.verifyPin(value,config)}
                 if(valid){dialog.dismiss();settings(config)}else pin.error="设置密码错误，连续5次错误锁定1分钟"
             }
-        } };dialog.show()
+        } };dialog.show();dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
     private fun settings(old:DeviceConfig?) {
         if(settingsOpen)return
@@ -199,6 +212,6 @@ class MainActivity:ComponentActivity(),PlayerScreen {
                 if(candidate.bootEnabled && Build.VERSION.SDK_INT>=33 && checkSelfPermission(AndroidPermissions.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(arrayOf(AndroidPermissions.permission.POST_NOTIFICATIONS),1)
                 begin(candidate)
             } catch(e:Exception){feedback.text=e.message ?: "保存失败，请检查中转连接"}
-        }} };dialog.show()
+        }} };dialog.show();dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 }

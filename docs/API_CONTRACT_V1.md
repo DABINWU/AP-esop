@@ -1,6 +1,6 @@
 # ESOP 共享接口契约 V1
 
-状态：中心和Windows relay已实现；Android仅约定契约，尚无播放客户端实现。
+状态：中心、Windows relay及Android原生播放器已实现；构建/模拟器/一体机验收分别记录，不等同实机通过。
 本文先于中心代码创建。所有接口前缀 `/api/v1`，JSON UTF-8，时间 UTC ISO 8601
 （如 `2026-11-06T03:00:00.000Z`），ID 为不透明字符串，禁止以 IP 识别屏幕。
 
@@ -259,7 +259,7 @@ ack 只说明中转接收，不表示屏幕已播放。
 网络失败重传相同 event_id/载荷；重复判定记录长期持久化，V1 无自动清理。
 reports、sync、acks 都更新中转联系时间；只有 report 更新屏幕联系时间。
 
-## 中转—Android（中转已实现，Android客户端未实现）
+## 中转—Android
 
 Android实现补充（兼容增加）：device/sync新增`manifest_sha256`（ready时同中心清单规范JSON摘要，
 否则null）、`report_seq_floor`（该屏中转已接受最大report_seq）。终端验证清单摘要、不可变ID/文件映射，

@@ -96,3 +96,26 @@ Node DOM冒烟覆盖互斥可见、导航当前状态、历史地址/未知地�
 
 版本删除测试覆盖鉴权、最后版本、目标/实际/待更新引用、转换互斥、历史清单字节不变、
 共享文件保留、并发不能全删以及归档后上传/编辑/发布/克隆/下发被拒绝。schema4以独立表持久化归档。
+
+## Android 原生播放器
+
+最低API23（Android6.0），compile/target34；Kotlin、Room和Media3，Gradle Wrapper固定版本与分发SHA。
+本机使用Android Studio自带JDK21、SDK34；JVM字节码目标17。详细安装步骤见`android/README.md`。
+
+```powershell
+$env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
+.\android\gradlew.bat -p android assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug --no-daemon
+```
+
+`Protocol.kt`验证共享清单；`Transport.kt`实现同中转鉴权、Range及流式校验；
+`Database.kt`保存当前/上一内容、最新revision与单调事件outbox；`PlayerEngine.kt`管理下载、首帧激活、心跳和循环。
+`MainActivity.kt`和`TouchImageView.kt`提供原生控件、Media3、采样图片和缩放，无WebView/GMS。
+配置用Android Keystore AES-GCM保护，设置入口另有本地密码。关闭后台任务并持久保存，重开恢复后重新核对安排。
+
+契约新增可选download_progress，以及device/sync的manifest_sha256、report_seq_floor；
+旧报告无进度时沿用原规范JSON，防止升级后同event_id重试被误判冲突。中心与中转需同步更新。
+
+`python -m scripts.validate_android`在两台预先启动的、可清空的AOSP模拟器emulator-5554/5556中安装APK和测试包；
+创建独立Docker中心、Windows中转和HTTP故障代理，不修改本地正式测试实例的任务/文件/密码。
+SDK通过ANDROID_SDK_ROOT指定，运行需Docker、adb和已生成的媒体夹具。模拟器分辨率建议1920×1080。
+脚本记录实际中心状态、仪器测试和画面；不等同联发科硬件、Android6或长时间播放验收。

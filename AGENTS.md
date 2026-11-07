@@ -1,7 +1,9 @@
 # Repository rules
 
 Read `docs/API_CONTRACT_V1.md` and `docs/plans/ACTIVE.md` before changing behavior.
-Center and Windows relay are implemented. Android is contract-only; never claim Android hardware validation.
+Center, Windows relay and Android Kotlin player are implemented; never claim MediaTek hardware validation from emulator tests.
+Android uses Room, local verified files and Media3; only contacts relay, never center/VPN/Google Play services.
+Build android/ with its Gradle Wrapper, run JVM tests and lint; distinguish APK build, emulator and physical-device evidence.
 Relay runs one process with one download thread, independent sync/report threads, and a local SQLite volume.
 Preserve relay outbox/event identities, assignment revisions, immutable manifests and protected caches across updates.
 Run relay tests and real HTTP center/relay validation after protocol or synchronization changes.

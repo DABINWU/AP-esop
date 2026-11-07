@@ -12,7 +12,7 @@ data class PlayerState(@PrimaryKey val id:Int=1,val serial:Long=0,val knownRevis
 @Entity(tableName="snapshots")
 data class Snapshot(@PrimaryKey val versionId:String,val manifest:String,val sha256:String)
 @Entity(tableName="counters") data class Counter(@PrimaryKey val name:String,val value:Long)
-@Entity(tableName="outbox") data class PendingReport(@PrimaryKey val eventId:String,val seq:Long,val payload:String,val error:String?=null)
+@Entity(tableName="outbox",indices=[Index(value=["seq"],unique=true)]) data class PendingReport(@PrimaryKey val eventId:String,val seq:Long,val payload:String,val error:String?=null)
 @Dao interface PlayerDao {
     @Query("SELECT * FROM player_state WHERE id=1") suspend fun state():PlayerState?
     @Insert(onConflict=OnConflictStrategy.REPLACE) suspend fun state(value:PlayerState)
@@ -24,6 +24,7 @@ data class Snapshot(@PrimaryKey val versionId:String,val manifest:String,val sha
     @Insert suspend fun report(value:PendingReport)
     @Query("SELECT * FROM outbox ORDER BY seq LIMIT 100") suspend fun pending():List<PendingReport>
     @Query("SELECT * FROM outbox") suspend fun allPending():List<PendingReport>
+    @Query("SELECT * FROM outbox WHERE seq>:after ORDER BY seq LIMIT 500") suspend fun pendingPage(after:Long):List<PendingReport>
     @Query("DELETE FROM outbox WHERE eventId=:id") suspend fun remove(id:String)
     @Query("UPDATE outbox SET error=:error WHERE eventId=:id") suspend fun block(id:String,error:String)
     @Query("SELECT count(*) FROM outbox") suspend fun pendingCount():Int
@@ -31,7 +32,8 @@ data class Snapshot(@PrimaryKey val versionId:String,val manifest:String,val sha
 @Database(entities=[PlayerState::class,Snapshot::class,Counter::class,PendingReport::class],version=1,exportSchema=true)
 abstract class PlayerDatabase:RoomDatabase() {
     abstract fun dao():PlayerDao
-    companion object { fun open(context:Context)=Room.databaseBuilder(context,PlayerDatabase::class.java,"esop.db").setJournalMode(JournalMode.WRITE_AHEAD_LOGGING).build() }
+    companion object { fun open(context:Context)=Room.databaseBuilder(context,PlayerDatabase::class.java,"esop.db").setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
+        .addCallback(object:RoomDatabase.Callback(){override fun onOpen(db:androidx.sqlite.db.SupportSQLiteDatabase){db.execSQL("PRAGMA synchronous=FULL");db.query("PRAGMA busy_timeout=15000").use { it.moveToFirst() }}}).build() }
 }
 
 class Repository(val db:PlayerDatabase) {

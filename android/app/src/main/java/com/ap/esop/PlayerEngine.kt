@@ -26,9 +26,11 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
     private var heartbeat=10L
     private var alive=false
     private var confirmed=false
+    private var identityVerified=false
     private var verified=false
     private var online=false
     private var lastError:String?=null
+    private var networkError:String?=null
     private var transfer:Progress?=null
     private var renderGeneration=0L
     private var retryItem=0
@@ -43,8 +45,10 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
     fun start() {
         alive=true
         scope.launch {
+          try {
             app.lastSave?.await()
             state=withContext(Dispatchers.IO){repo.load()}
+            identityVerified=withContext(Dispatchers.IO){(repo.dao.counter("report_seq") ?: 0)>0}
             desired=state.desiredJson?.let { Wire.gson.fromJson(it,Assignment::class.java) }
             restore()
             launch { while(isActive){ poll();delay(heartbeat*1000) } }
@@ -52,6 +56,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
             launch(Dispatchers.IO) { while(isActive){flush();delay(3000)} }
             launch { while(isActive){delay(200);if(confirmed && !state.paused && currentItem()?.type!="video" && clock.left()==0L) move(1);update()} }
             launch { while(isActive){delay(5000);persist()} }
+          } catch(e:CancellationException){throw e} catch(e:Exception){android.util.Log.e("ESOPStorage","Player state initialization failed",e);lastError="本地播放状态无法恢复，请检查存储空间或设备设置";update()}
         }
     }
     private suspend fun restore() {
@@ -75,7 +80,8 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
             val reply=client.sync(config.deviceId,state.knownRevision)
             val sequence=withContext(Dispatchers.IO){repo.dao.counter("report_seq") ?: 0}
             check(reply.reportSeqFloor<=sequence) { "设备编号已被其他安装使用，请管理员分配新编号" }
-            online=true;heartbeat=reply.heartbeatSeconds.toLong().coerceIn(1,3600)
+            identityVerified=true
+            online=true;networkError=null;heartbeat=reply.heartbeatSeconds.toLong().coerceIn(1,3600)
             val a=reply.assignment
             if(a==null){verified=state.activeVersion==null;update();return}
             require(a.deviceId==config.deviceId && a.assignmentRevision>=state.knownRevision) { "中转返回了过期安排" }
@@ -89,7 +95,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
                 candidateFailures=0;failedRevision=0;retryAt=0;transfer=null;lastError=null
             }
             verified=a.assignmentRevision==state.activeRevision && a.playlistVersionId==state.activeVersion
-            if(verified){lastError=null;update();return}
+            if(verified){update();return}
             if(!reply.ready || reply.manifest==null || reply.manifestSha256==null){lastError=reply.error;update();return}
             if(proposal==null && downloadJob?.isActive!=true && System.currentTimeMillis()>=retryAt && (failedRevision!=a.assignmentRevision || candidateFailures<3)) {
                 val content=Wire.manifest(reply.manifest,reply.manifestSha256,a.playlistVersionId)
@@ -98,7 +104,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
                 downloadJob=scope.launch { downloadLock.withLock { cleanup();prepare(Prepared(a,content,snapshot)) } }
             }
             update()
-        } catch(e:CancellationException){throw e} catch(e:Exception){online=false;verified=false;lastError=safeError(e);update()}
+        } catch(e:CancellationException){throw e} catch(e:Exception){online=false;verified=false;networkError=safeError(e);update()}
     }
     private suspend fun prepare(prepared:Prepared) {
         val a=prepared.assignment;val files=prepared.manifest.items.map { it.file }.distinctBy { it.id }
@@ -110,6 +116,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
                     if(System.currentTimeMillis()-lastProgressUi>200){lastProgressUi=System.currentTimeMillis();update()}
                 } }
                 done+=file.sizeBytes;completed++
+                transfer=Progress(a.playlistVersionId,done,total,completed,files.size)
             }
             val fresh=client.sync(config.deviceId,state.knownRevision)
             if(fresh.assignment?.assignmentRevision!=a.assignmentRevision || fresh.assignment.playlistVersionId!=a.playlistVersionId || !fresh.ready) {
@@ -157,7 +164,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
         val remaining=if(restore)state.remainingMs else ((item.durationSeconds ?: 20.0)*1000).toLong()
         clock.load(remaining,true)
         screen.render(item,cache.path(item.file),state.paused,if(restore)state.videoPositionMs else 0,ready={
-            if(alive && generation==renderGeneration){confirmed=true;retryItem=0;clock.load(remaining,state.paused);scope.launch {emit()};update()}
+            if(alive && generation==renderGeneration){confirmed=true;retryItem=0;if(desired?.assignmentRevision==state.activeRevision)lastError=null;clock.load(remaining,state.paused);scope.launch {emit()};update()}
         },ended={if(alive && generation==renderGeneration && !state.paused)move(1)},failed={message->
             if(alive && generation==renderGeneration){lastError=message;confirmed=false;retryItem++
                 if(retryItem<3)scope.launch {delay(1500L*retryItem);if(alive && generation==renderGeneration)showCurrent(true)}
@@ -192,22 +199,29 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
         if(proposal!=null)return
         val item=currentItem()
         val value=state.copy(serial=state.serial+1,remainingMs=if(item?.type!="video")clock.left() else state.remainingMs,videoPositionMs=screen.videoPosition())
-        state=value;withContext(Dispatchers.IO){repo.save(value)}
+        state=value
+        try{withContext(Dispatchers.IO){repo.save(value)}}catch(e:CancellationException){throw e}catch(e:Exception){lastError="播放位置未能保存，请检查磁盘空间";update()}
     }
     private suspend fun emit() {
+        if(!identityVerified)return
         try {
             val actual=state.activeVersion!=null && confirmed && proposal==null
             val playing=when { actual -> if(state.paused)"paused" else "playing";desired!=null->"downloading";else->"idle" }
-            withContext(Dispatchers.IO){repo.enqueue(config,state,actual,currentItem(),playing,
-                desired?.playlistVersionId?.takeIf { desired?.assignmentRevision!=state.activeRevision },lastError,transfer)}
+            val snapshot=state;val item=currentItem();val pending=desired?.playlistVersionId?.takeIf { desired?.assignmentRevision!=state.activeRevision }
+            val error=lastError ?: networkError;val progress=transfer
+            withContext(Dispatchers.IO){repo.enqueue(config,snapshot,actual,item,playing,pending,error,progress)}
         } catch(e:CancellationException){throw e} catch(e:Exception){lastError="播放报告未能持久保存，请检查磁盘空间";update()}
     }
     private suspend fun cleanup() {
+      try {
         val protected=mutableSetOf<String>()
         listOf(state.activeVersion,state.previousVersion,desired?.playlistVersionId).filterNotNull().forEach { protected.add(it) }
         withContext(Dispatchers.IO) {
-            repo.dao.allPending().forEach { event -> val report=Wire.gson.fromJson(event.payload,Report::class.java)
-                report.actualVersionId?.let {protected.add(it)};report.pendingVersionId?.let {protected.add(it)}
+            var after=0L
+            while(true){val page=repo.dao.pendingPage(after);if(page.isEmpty())break
+                page.forEach { event -> val report=Wire.gson.fromJson(event.payload,Report::class.java)
+                    report.actualVersionId?.let {protected.add(it)};report.pendingVersionId?.let {protected.add(it)}
+                };after=page.last().seq
             }
             val keep=mutableSetOf<String>()
             protected.forEach { id -> repo.dao.snapshot(id)?.let { snapshot -> parse(snapshot).items.forEach { keep.add(cache.path(it.file).name) } } }
@@ -216,6 +230,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
                 if((file.name.endsWith(".bin") || file.name.endsWith(".bin.partial")) && name !in keep && file.canonicalFile.parentFile==cache.directory.canonicalFile)file.delete()
             }
         }
+      } catch(e:CancellationException){throw e} catch(e:Exception){lastError="旧缓存暂未清理，请检查存储空间";update()}
     }
     private suspend fun flush() {
         for(event in repo.dao.pending()) {
@@ -229,7 +244,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
     private fun update() {
         val pending=desired?.assignmentRevision!=null && desired?.assignmentRevision!=state.activeRevision
         val status=when { !online->"离线 / 最新安排待核对";!verified->if(pending)"新资料准备中 · 保留本地播放" else "安排待核对";else->"中转已连接 · 安排已核对" }
-        screen.update(manifest,state.category,state.itemIndex,state.paused,status,lastError,transfer)
+        screen.update(manifest,state.category,state.itemIndex,state.paused,status,lastError ?: networkError,transfer)
     }
     private fun safeError(e:Exception)=when(e){is RelayFailure->e.message ?: "中转访问失败";is IllegalArgumentException,is IllegalStateException->e.message ?: "文件或协议校验失败";else->"中转连接中断，继续本地播放"}
     fun stop() {
@@ -240,7 +255,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
         scope.cancel();client.close()
         app.lastSave=app.scope.async {
             repo.save(saved)
-            runCatching {repo.enqueue(config,saved,actual,item,if(actual)"paused" else "idle",desired?.playlistVersionId?.takeIf {it!=saved.activeVersion},"播放页面已离开",null)}
+            if(identityVerified)runCatching {repo.enqueue(config,saved,actual,item,if(actual)"paused" else "idle",desired?.playlistVersionId?.takeIf {it!=saved.activeVersion},"播放页面已离开",null)}
         }
     }
 }

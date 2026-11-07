@@ -16,6 +16,7 @@ class TouchImageView(context:Context):View(context) {
     private var drawn:(()->Unit)?=null
     var onZoom:()->Unit={}
     private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val rect=RectF()
     private val scale=ScaleGestureDetector(context,object:ScaleGestureDetector.SimpleOnScaleGestureListener(){
         override fun onScaleBegin(detector:ScaleGestureDetector):Boolean {onZoom();return true}
         override fun onScale(detector:ScaleGestureDetector):Boolean {zoom=(zoom*detector.scaleFactor).coerceIn(1f,5f);invalidate();return true}
@@ -37,7 +38,8 @@ class TouchImageView(context:Context):View(context) {
         val w=image.width*fit*zoom;val h=image.height*fit*zoom
         panX=panX.coerceIn(-max(0f,(w-width)/2),max(0f,(w-width)/2))
         panY=panY.coerceIn(-max(0f,(h-height)/2),max(0f,(h-height)/2))
-        canvas.drawBitmap(image,null,RectF((width-w)/2+panX,(height-h)/2+panY,(width+w)/2+panX,(height+h)/2+panY),paint)
+        rect.set((width-w)/2+panX,(height-h)/2+panY,(width+w)/2+panX,(height+h)/2+panY)
+        canvas.drawBitmap(image,null,rect,paint)
         drawn?.let { drawn=null;post(it) }
     }
     override fun onTouchEvent(event:MotionEvent):Boolean {

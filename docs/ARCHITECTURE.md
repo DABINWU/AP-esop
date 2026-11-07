@@ -13,7 +13,7 @@ Android 屏幕 ──局域网主动同步、鉴权下载──┘
      └─ 下载完毕/校验成功 → 本地原子切换 → 循环播放
 ```
 
-中心与Windows中转已有可运行程序，Android仍仅契约。中心没有设备 IP、推送连接、VPN 配置或物理亮屏检测。
+中心、Windows中转及Android播放器均已有程序，Android实机需单独验收。中心没有设备 IP、推送连接、VPN 配置或物理亮屏检测。
 单中转 ID 配置式，设备以登记的固定 device_id 标识；中转接口只接受该 relay_id。
 
 ## 三种状态
@@ -158,6 +158,16 @@ device/sync返回最新安排，未ready不给manifest；activation-check本地�
 WinSW 2.12.0托管Python，SCM延迟自动启动、Session 0、进程失败按10/30/60秒恢复，日志轮转。
 健康接口检查DB、目录和线程，中心断线不算本地宕机；SCM不是HTTP健康监控，unhealthy应告警后重启。
 本地管理员网页及PDA只有只读入口。安装与网络要求见relay/README.md。
+
+## Android 原生播放端
+
+Android原生端：Kotlin View/Room/本地文件/Media3，min23、compile/target34，不依赖WebView/Office/GMS。
+配置Keystore AES-GCM加密，管理员设置密码与播放按钮分离。Room状态、报告序号及outbox事务持久化，WAL/FULL同步；
+清单摘要/结构及文件大小/SHA验证，Range/If-Range恢复.partial，全部完成后复核最新安排和activation-check。
+首图onDraw或Media3首帧（关联实际mediaId的analytics事件）后才提交active、确认实际播放；失败回到旧缓存。
+旧内容离线恢复先标待核对，相同安排不重置，新revision成功后首项正常循环；前台期间独立轮询/下载/心跳/补传。
+图片单页采样和串行解码，播放器复用，页面离开释放资源。管理员开机适配/固定屏幕入口受系统与固件限制，不假定系统权限。
+详情见android/README.md；断电、联发科硬解和长时间温度/内存验收仍需真实一体机。
 
 ## 后续演进
 

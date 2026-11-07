@@ -6,3 +6,9 @@ test-output
 **/__pycache__
 .pytest_cache
 pytest-cache-files-*
+android/.gradle
+android/**/build
+android/local.properties
+android/**/*.jks
+android/**/*.keystore
+android/dist

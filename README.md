@@ -1,10 +1,11 @@
-# 工厂 ESOP · 中心与 Windows 中转
+# 工厂 ESOP · 中心、Windows 中转与安卓屏
 
 可运行的 FastAPI + SQLite 中心，简单中文管理页面，单车间、单中转、多登记屏幕。
-**center 和 relay 已实现；android 仍只有接口契约，没有播放器/APK。**
+**center、relay 和原生 Kotlin Android 播放 App 已实现。** Android 最低支持6.0（API23），不依赖Google Play服务。
 VPN 由外部提供；中转主动访问中心，中心不能主动连接车间设备。
 
 Windows中转安装、后台服务、失败恢复、防火墙、访问和备份见[中转部署说明](relay/README.md)。
+APK构建、安装、屏幕编号、管理员设置及离线播放说明见[安卓部署说明](android/README.md)。
 本次中心同步接口增加manifest摘要、关联PDF、历史revision和设备原始状态；部署中转前同步更新中心Web镜像。
 已有manifest与资料库不改写，SOP/SIP四模块、16:9、自动编号和已发布不可变语义继续沿用。
 
@@ -87,7 +88,7 @@ WPS的`.xlsx`单元格图片（`DISPIMG("ID",1)`）已增加兼容转换，支�
 此模式忽略打印区域，整表较长时文字会缩小，必须检查分页图片预览后再发布。
 旧通用上传API仍保留原分页选项；新页面不再要求先导入资料库。旧任务内容在自定义模块显示。
 新发布manifest为schema2，包含四模块及contain显示规则；原件和旧发布版本保持不变。
-未来安卓按四按钮选择并仅循环当前模块；本阶段中心提供模块预览和接口契约，尚无安卓客户端。
+安卓按四个分类按钮选择并仅循环当前模块，支持上一项、暂停/继续、下一项、重播及图片缩放；中心提供同模块预览。
 
 对于这类WPS浮动流程图，建议先在 **WPS打印设置中选中指导书区域、横向、缩放为1页宽×1页高**，
 检查打印预览的图形、照片、页数和文字，再导出PDF上传。导出前原表内容过多时，单页文字会较小。
@@ -173,11 +174,11 @@ python -m center.worker
 生产使用HTTPS并设AUTH_COOKIE_SECURE=true；账号登录失败有限流，反向代理须保留真实Host、Origin、Cookie和X-CSRF-Token。
 反向代理需发送X-Forwarded-Proto=https，并设置FORWARDED_ALLOW_IPS为其真实来源IP；不要将任意客户端都设为可信代理。
 
-`center/` 中心和静态管理界面；`relay/`、`android/` 后续客户端位置；`docs/` 接口和架构。
+`center/` 中心和静态管理界面；`relay/` Windows后台服务；`android/` Kotlin原生播放器；`docs/` 接口和架构。
 接口先于实现定义在 [API_CONTRACT_V1.md](docs/API_CONTRACT_V1.md)，所有业务 API 为 `/api/v1`。
 支持 xlsx/xls → LibreOffice PDF → 清晰分页 PNG，图片，H.264/AAC（或无声）MP4；
 默认视频180秒，超限拒绝，不截断、不提供转码。Excel 失败不能编排/发布。
 
-未实现：Android 播放 App、PDA 下发、管理员取消抢占、Office 在线编辑、审批、
+未实现：PDA 下发、管理员取消抢占、Office 在线编辑、审批、
 多车间、MES、视频自动转码。真实工艺 Excel 版式、群晖现场部署、VPN 和三端实机联调仍需验收。
 后续计划见 [ACTIVE.md](docs/plans/ACTIVE.md)。

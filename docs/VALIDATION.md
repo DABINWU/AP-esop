@@ -417,10 +417,50 @@ CSRF上传预检、跨源拒绝、刷新/数据库重启、过期、改密撤销
 证据`test-output/pytest-screens-order.xml`；真实媒体回归`test-output/media/1794036183672281839/result.json`。
 本地仅更新Web，worker和Windows中转未重启；未做真实浏览器视觉验收。
 
+## 2026-11-07 Android APK、AOSP双模拟器及真实HTTP三端联调
+
+本次是**真实Android App运行于两台Android10/API29 AOSP x86_64模拟器**，通过本机HTTP故障代理访问
+Windows Python中转及独立Docker中心；无Google Play服务。不是联发科一体机实机验证，也没有现场VPN。
+原用户中心资料、密码和派发未用于联调；测试中心/中转使用隔离目录与临时密钥。
+
+- Gradle `assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug`成功，12项JVM测试通过，Lint 0错误/13警告。
+  警告主要为固定target、局域网HTTP和中文字符串国际化等；没有跳过TLS证书验证。
+- APK：`android/dist/AP-ESOP-Player-debug.apk`，com.ap.esop，1.0.0/code1，minSDK23/target34，
+  SHA256 `874dd27e3618e976f6239071a2612467b8023c2dd384a7f61e9947420819aaab`。
+  apksigner验证v1/v2签名成功。Debug签名仅供侧载验证，后续更新需保留同一签名。
+- Python全量132项通过，`test-output/pytest-android-final.xml`。首次默认发现因旧测试目录ACL失败，
+  改用显式tests目录及独立basetemp后通过；未删除旧证据目录。
+- 中心与账号DOM冒烟均通过；不作为浏览器视觉验收。
+- 真实LibreOffice/Poppler/ffprobe媒体回归通过：`test-output/media/1794040268504350157/result.json`。
+
+端到端结果：`test-output/android-http/1794040447559641800/result.json`；
+`instrumentation.txt`两项通过（Room事务/实际控件混合播放），`second-screen-instrumentation.txt`一项通过。
+`center-status.json`保留2台在线、待同步0、各屏实际版本/项的真实回报。
+图片/视频截图为`new-target-blocked.png`、`final-playback.png`；`controls-playback.png`是启动瞬间桌面，
+不作为App画面证据。后续脚本已将截图移至UI稳定检查之后。
+
+|验收项|本次结果与边界|
+|---|---|
+|Excel分页图片与视频循环|真实转换基础样例xlsx六页，SOP七项含MP4；实际Media3首帧、自动翻页及循环通过；不是客户工艺版式验收|
+|上一项/下一项/暂停/继续/重播/缩放|原生View仪器测试通过；缩放暂停、退出不自动恢复，视频暂停位置与续播通过|
+|暂停仍心跳|暂停保持12秒，真实中心收到paused；正常报告序号持续增长|
+|离线继续/关闭重开|停止中转、force-stop/reopen后恢复已验证本地内容和暂停状态，并显示最新安排待核对|
+|离线多次改派|App停止期间v2超时后改v3，重开仅激活v3，新安排恢复正常循环|
+|不完整新版本|故障代理对新文件返回503，实际版本保持v3；解除后校验、核对revision、首图成功才激活v4|
+|视频新版本生效|视频单项v5首次Media3首帧后中心收到actual版本|
+|中转重启与报告补传|实际中转进程停止/重启后恢复同步、App本地队列补传；没有伪造终端联系时间|
+|多屏中心状态|两个独立AOSP实例使用不同device_id，中心online=2、实际版本分别正确|
+|断点/错误/磁盘不足|JVM HTTP测试覆盖206续传、200重下、完整partial恢复、SHA错误及预留空间拒绝；不是模拟器灌满磁盘或硬断电测试|
+|实机断电/长期运行|未完成；需联发科一体机核对硬解、Android6、触屏、固件开机、自启权限、温度与内存|
+
+本轮发现并修复SQLite busy_timeout PRAGMA需读取返回游标、首次系统全屏提示影响自动化、
+频繁重复更新文本影响UI稳定检查等问题，修复后重跑通过。测试与构建日志保存在`test-output/android-tools/`。
+本机中心Web镜像及Windows中转同步更新；原6份发布manifest摘要核对不变，不更改账号密码/目标安排。
+
 ## 现场验收建议
 
 1. 在群晖按README部署，确认两个health状态、单Web worker、目录权限和日志轮转。
 2. 提供至少一份xlsx与一份xls真实工艺文件，逐页对照Excel打印预览：分页、字体、嵌图、边界、清晰度。
 3. 用真实H.264/AAC及无声视频验证≤180秒接受、>180秒拒绝，目标安卓硬件再验证解码。
-4. 客户端实现后，断网改派多次、重启中心/中转/屏幕，确认只应用最新revision、校验后原子切换，旧版本离线循环。
+4. 在真实一体机断网改派多次、重启中心/中转/屏幕，确认只应用最新revision、校验后原子切换，旧版本离线循环。
 5. 执行停机备份和空目录恢复，核对资产摘要、manifest、目标安排、历史任务和事件序号。

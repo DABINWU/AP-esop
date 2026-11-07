@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "9f12ee3acc4d483959dc0da2182788a0",
+    "identityHash": "916d05917469718103ce1755036f0179",
     "entities": [
       {
         "tableName": "player_state",
@@ -189,14 +189,24 @@
             "eventId"
           ]
         },
-        "indices": [],
+        "indices": [
+          {
+            "name": "index_outbox_seq",
+            "unique": true,
+            "columnNames": [
+              "seq"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_outbox_seq` ON `${TABLE_NAME}` (`seq`)"
+          }
+        ],
         "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9f12ee3acc4d483959dc0da2182788a0')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '916d05917469718103ce1755036f0179')"
     ]
   }
 }

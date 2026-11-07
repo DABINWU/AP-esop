@@ -221,7 +221,7 @@ function renderDevices(data) {
     tr.append(node('td',labels[d.online_state]+(d.pending?' · 待同步':'')));
     const desired = node('td',versionLabel(d.desired?.playlist_version_id)); desired.append(node('small',d.desired?'revision '+d.desired.assignment_revision:'未安排')); tr.append(desired);
     const actual = node('td',versionLabel(d.actual_version_id)); actual.append(node('small',d.current_item_id || '无当前项')); tr.append(actual);
-    const state = node('td',labels[d.playback_state] || d.playback_state); state.append(node('small','待更新：'+versionLabel(d.pending_version_id))); tr.append(state);
+    const state = node('td',labels[d.playback_state] || d.playback_state); state.append(node('small','待更新：'+versionLabel(d.pending_version_id)));if(d.download_progress){const p=d.download_progress;state.append(node('small',`终端下载 ${p.completed_files}/${p.total_files} · ${Math.round(p.received_bytes*100/Math.max(1,p.total_bytes))}%`));} tr.append(state);
     const last = node('td',d.last_contact_at || '未联系'); if (d.error) last.append(node('small',d.error,'failure')); tr.append(last); $('device-list').append(tr);
   }
 }
