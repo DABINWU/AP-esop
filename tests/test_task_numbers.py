@@ -56,7 +56,7 @@ def test_v2_migration_backfills_blanks_and_preserves_existing_numbers(env):
     db.initialize()
     with db.read() as c:
         saved={r['id']:r['task_number'] for r in c.execute('SELECT * FROM playlists')}
-        assert c.execute('SELECT version FROM schema_version').fetchone()[0]==4
+        assert c.execute('SELECT version FROM schema_version').fetchone()[0]==5
     assert saved['manual']=='CUSTOM-7' and saved['existing']=='ESOP-20260101-000042'
     assert sequence(saved['blank'])==43 and sequence(saved['whitespace'])==44
     db.initialize()

@@ -119,7 +119,7 @@ def test_database_v1_migration_preserves_old_manifest(env,tmp_path):
     c.commit();c.close()
     db=Database(replace(env[1].settings,data_dir=old));db.initialize();db.initialize()
     with db.read() as c:
-        assert c.execute('SELECT version FROM schema_version').fetchone()[0]==4
+        assert c.execute('SELECT version FROM schema_version').fetchone()[0]==5
         assert c.execute('SELECT manifest FROM versions').fetchone()[0]==manifest
         assert c.execute('SELECT archived_at FROM playlists').fetchone()[0] is None
 

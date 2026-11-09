@@ -169,7 +169,8 @@ def main():
             assert sync('screen-b')['assignment']['playlist_version_id']==version
             versions={version:manifest}
             def next_version():
-                v=post('versions/'+version+'/clone')['id']
+                v=post('playlists',{'name':'中转改派验证 '+str(len(versions))})['id']
+                r=center.put('/api/v1/versions/'+v+'/items',json={'items':[{'asset_id':assets[0],'category':'production','duration_seconds':20},{'asset_id':assets[1],'category':'check_video'}]});r.raise_for_status()
                 m=post('versions/'+v+'/publish')['manifest'];versions[v]=m;return v
             v2=next_version()
             post('deployments',{'request_id':'real-relay-second','playlist_version_id':v2,'device_ids':['screen-b'],'timeout_seconds':10})
@@ -203,6 +204,51 @@ def main():
             wait(lambda:sync('screen-b')['ready'])
             assert post('versions/'+version+'/publish')['manifest']==manifest
             record('space restored: safe redownload/reprepare; original published manifest unchanged')
+            # Real Excel retention: preserve an offline old target, then reclaim it only after confirmation.
+            with (samples/'basic-layout.xlsx').open('rb') as stream:r=center.post('/api/v1/assets',files={'file':('retention-layout.xlsx',stream)})
+            r.raise_for_status();retention_asset=r.json()['id']
+            def retention_ready():
+                row=next(a for a in center.get('/api/v1/assets').json()['assets'] if a['id']==retention_asset)
+                assert row['status']!='failed';return row if row['status']=='ready' else None
+            original_asset=wait(retention_ready)
+            p1=post('playlists',{'name':'两版本保留验证'})['id']
+            r=center.put('/api/v1/versions/'+p1+'/items',json={'items':[{'asset_id':retention_asset}]});r.raise_for_status()
+            m1=post('versions/'+p1+'/publish')['manifest'];versions[p1]=m1
+            post('devices',{'device_id':'retention-screen','name':'保留策略屏幕'})
+            wait(lambda:not any(t['status']=='running' for t in center.get('/api/v1/deployments').json()['tasks']),30)
+            t1=post('deployments',{'request_id':'retention-old','playlist_version_id':p1,'device_ids':['retention-screen'],'timeout_seconds':10})
+            wait(lambda:not any(t['status']=='running' for t in center.get('/api/v1/deployments').json()['tasks']),20)
+            def policy_version(source,asset_id):
+                vid=post('versions/'+source+'/clone')['id']
+                response=center.put('/api/v1/versions/'+vid+'/items',json={'items':[{'asset_id':asset_id}]});response.raise_for_status()
+                content=post('versions/'+vid+'/publish')['manifest'];versions[vid]=content;return vid
+            p2=policy_version(p1,assets[1]);p3=policy_version(p2,assets[0])
+            rows={v['id']:v for v in center.get('/api/v1/playlists').json()['versions']}
+            assert rows[p2]['retired_at'] and not rows[p1]['retired_at']
+            assert center.get(original_asset['files'][0]['download_path']).status_code==200
+            record('two-publication retention preserves offline old Excel target and expires unused intermediate version')
+            t3=post('deployments',{'request_id':'retention-new','playlist_version_id':p3,'device_ids':['retention-screen'],'timeout_seconds':30})
+            def latest_policy_ready():
+                response=local.post('/api/v1/device/sync',json={'device_id':'retention-screen','known_assignment_revision':0});response.raise_for_status()
+                return response.json()['ready'] and response.json()['assignment']['playlist_version_id']==p3
+            wait(latest_policy_ready)
+            rr=report('retention-screen',1,t3['targets'][0]['assignment_revision'],p3,datetime.now(timezone.utc).isoformat().replace('+00:00','Z'))
+            response=local.post('/api/v1/device/reports',json={'report':rr});response.raise_for_status()
+            wait(lambda:next(d for d in center.get('/api/v1/devices').json()['devices'] if d['device_id']=='retention-screen')['actual_version_id']==p3)
+            p4=policy_version(p3,assets[0])
+            assert all(center.get(f['download_path']).status_code==410 for f in original_asset['files'])
+            import sqlite3
+            connection=sqlite3.connect('file:'+str(run/'center-data/center.sqlite3')+'?mode=ro',uri=True)
+            paths=[row[0] for row in connection.execute('SELECT path FROM files WHERE asset_id=?',(retention_asset,))];connection.close()
+            assert paths and not any((run/'center-data'/path).exists() for path in paths)
+            assert center.get(manifest['items'][0]['file']['download_path']).status_code==200
+            record('after actual confirmation, exclusive Excel original/PDF/pages reclaimed; shared media and immutable history survive')
+            wait(lambda:not any(t['status']=='running' for t in center.get('/api/v1/deployments').json()['tasks']),30)
+            post('deployments',{'request_id':'retention-pending','playlist_version_id':p4,'device_ids':['retention-screen'],'timeout_seconds':10})
+            p5=post('versions/'+p4+'/clone')['id']
+            blocked=center.post('/api/v1/versions/'+p5+'/publish')
+            assert blocked.status_code==409 and blocked.json()['error']['code']=='version_retention_blocked'
+            record('two distinct desired/actual old versions block third publication instead of deleting active files')
             for browser,creds,session in ((center_browser,center_credentials,center_session),(relay_browser,relay_credentials,relay_session)):
                 previous=httpx.Cookies(browser.cookies)
                 r=browser.post('/api/v1/auth/password',json={'current_password':creds['password'],'new_password':'integration-new-password-'+secrets.token_hex(12)},headers={'X-CSRF-Token':session['csrf_token']})

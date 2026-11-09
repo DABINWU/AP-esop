@@ -15,6 +15,7 @@ from .wps_images import load_cell_images
 from .drawing_compat import load_ignored_drawings
 from .screen_render import fit_screen_page
 from .asset_delete import cleanup_deleting_assets
+from .retention import run as apply_retention
 from .playlist_workflow import attach_asset
 
 log = logging.getLogger("esop.worker")
@@ -240,7 +241,7 @@ def main():
         while True:
             (db.settings.data_dir / "worker-heartbeat").touch()
             if time.monotonic() >= next_cleanup:
-                cleanup_deleting_assets(db)
+                apply_retention(db,False)
                 next_cleanup = time.monotonic() + 30
             if not process_one(db):
                 time.sleep(1)

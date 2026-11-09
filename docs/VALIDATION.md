@@ -580,6 +580,53 @@ JDK25不兼容既有Gradle8.7，另装校验官方SHA的JDK21后构建。Release
 Release另在专用AVD切换1440×720/density320检查信息区和侧栏独立滚动、管理员可达，通过；
 `test-output/android-tools/compact-player-release.log`及right-rail-phone-top/bottom.png，检查后恢复分辨率。
 
+## 2026-11-09 清理不用的测试数据
+
+按用户明确授权删除项目内专用AVD、系统镜像解压副本/压缩包、工具安装包、旧测试数据库及根目录pytest缓存。
+删除前核对Docker绑定目录与本机服务配置，逐项验证目标绝对路径在工作区且不与保留路径相交；仅清理项目内专用模拟器，用户当前模拟器不动。
+清理142项目标，0失败。test-output逻辑文件大小22.93GiB降至约0.574GiB；实际磁盘释放10.55GiB，
+差异主要来自模拟器稀疏虚拟磁盘。结果`test-output/cleanup-report.json`。
+保留当前中心完整目录、中转完整目录、正式APK/签名、JDK21、一套媒体夹具和服务托管工具。
+旧result.json及正式版关键截图/仪器日志存入`test-output/validation-records/`，保留原相对层级；
+本文此前的原测试数据路径是历史记录，多数旧完整目录已删除，不能再假定图片/数据库仍在原位置。
+清理后Web/worker健康、中转在线，原6份发布清单摘要不变、正式APK哈希不变，签名及JDK仍存在。
+此轮未重新生成测试缓存。后续安卓设备验证只用真实设备，规则已写入AGENTS与开发文档。
+
+## 2026-11-09 中心v1.1.0两版本保留
+
+每份资料最多两个可用已发布版本：新发布+一个旧版；旧版优先选仍被目标/实际/待更新/执行任务引用的版本，
+不一定是序号紧邻的上一版。若同时存在两种受保护旧版则409/version_retention_blocked，事务拒绝新发布并列出屏幕，
+不改现有目标、不强删离线内容。草稿另外保留；过期版仅留下不可变items/manifest、文件描述和任务历史。
+原件/PDF/分页/视频的独占字节通过retiring→expired清理，共用及草稿引用保护，worker约30秒收敛/重试。
+schema5只新增独立过期记录表；旧文件接口410，过期版本禁止克隆/下发，迟到实际回报及relay/sync仍正常。
+
+144项回归通过（test-output/pytest-retention-release.xml），新增9项保留策略专项；中心/账号DOM通过。
+真实中心→中转HTTP与真实Excel/PDF清理通过，记录`test-output/validation-records/relay-http/1794197296463054500/result.json`。
+实际LibreOffice/ffprobe回归`test-output/media/1794197540954696391/result.json`通过。未启动模拟器，未做安卓实机验证。
+真实HTTP验证了：离线旧Excel目标优先保留；实际确认新目标后，旧原件/PDF/页图物理消失，共用媒体仍可下载；
+旧目标与旧实际不同版本时新发布被阻止，而不是删除现场文件。存储失败重试、并发发布及迟到回报另有单测。
+
+运行数据库只读副本预检查13份资料，计划淘汰3版，无占用冲突，独占文件约23.90MiB。
+停机备份后同时更新Web/worker；备份位置记录test-output/retention-deployment.json，位于当前中心受保护目录，
+单次升级备份不参与线上版本配额，也不会每次发布重复创建备份。
+上线核对schema5、过期3版/3个独占资产、可用发布数最大2、cleanup_pending=0；所有14份发布清单内容不变，目标安排不变，
+原6份基线清单核对不变，中转在线。GET /retention结果见test-output/retention-live-plan.json。
+旧实际状态仅以最后收到报告为依据，未来迟到或本地回退到已过期版本仍可能发生；已缓存可继续用，中心不承诺恢复过期字节，
+此时应补最新目标。历史记录不是完整备份，不能把配额理解为只剩两条数据库历史。
+本轮临时测试数据按用户要求清理，仅保留结果记录与一套媒体夹具；当前运行数据、正式APK/签名和升级备份保留。
+
+## 2026-11-09 Android1.0.4侧栏精简
+
+按用户截图隐藏当前资料/图片视频数量、正常连接重复说明、当前项/页码/循环说明，GONE不占布局空间；
+顶部资料名、屏幕/日期、通信灯及操作按钮保留。下载progress或error存在时状态提示按需显示，不隐藏故障。
+仅改显示，播放计时/按钮语义/报告内容不变；仪器测试源更新为隐藏字段及跳过不可见字段位置检查。
+Release构建、18项JVM、Lint 0错误/13警告通过；Python144项通过（test-output/pytest-player-clean-info.xml）。
+无已连接真实设备，遵循用户要求未启动/操作模拟器，未宣称实机显示已验收。
+交付android/dist/AP-ESOP-Player-1.0.4-release.apk，code5，非debuggable，5109413字节。
+SHA256 `4d747ff23808c03a4679364fed3864902d5ae258e918d62531fb2e44ae885431`，
+apksigner确认与1.0.3正式版同证书，可覆盖保留配置；证据test-output/android-tools/release-1.0.4-verification.json。
+未更新中心/中转/协议或凭据，临时pytest数据在保留XML报告后清理。
+
 ## 现场验收建议
 
 1. 在群晖按README部署，确认两个health状态、单Web worker、目录权限和日志轮转。

@@ -121,8 +121,11 @@ class Database:
                 version = 3
             if version == 3:
                 c.execute('CREATE TABLE IF NOT EXISTS version_archives(version_id TEXT PRIMARY KEY REFERENCES versions(id),archived_at TEXT NOT NULL)')
-                c.execute('UPDATE schema_version SET version=4')
-            elif version != 4:
+                version = 4
+            if version == 4:
+                c.execute('CREATE TABLE IF NOT EXISTS version_retirements(version_id TEXT PRIMARY KEY REFERENCES versions(id),retired_at TEXT NOT NULL)')
+                c.execute('UPDATE schema_version SET version=5')
+            elif version != 5:
                 raise RuntimeError('Unsupported database schema')
             c.commit()
         except BaseException:

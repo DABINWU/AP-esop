@@ -82,17 +82,17 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         communicationLamp=View(this);signal.addView(communicationLamp,LinearLayout.LayoutParams(dp(12),dp(12)))
         communicationLabel=text("通信待核对",14f).apply {tag="communication";setTypeface(null,android.graphics.Typeface.BOLD)};signal.addView(communicationLabel,LinearLayout.LayoutParams(0,-2,1f));information.addView(signal)
         deviceInfo=text("屏幕：等待配置",13f).apply {tag="device-info";setPadding(dp(6),dp(5),dp(6),dp(5))};information.addView(deviceInfo)
-        fileInfo=text("资料：等待下发",13f).apply {tag="file-info";setPadding(dp(6),dp(5),dp(6),dp(5))};information.addView(fileInfo)
+        fileInfo=text("资料：等待下发",13f).apply {tag="file-info";visibility=View.GONE;setPadding(dp(6),dp(5),dp(6),dp(5))};information.addView(fileInfo)
         dateInfo=text("资料发布：—\n目标下发：—",12f).apply {tag="date-info";setPadding(dp(6),dp(5),dp(6),dp(5))};information.addView(dateInfo)
         contactInfo=text("最近通信：尚未验证",11f).apply {tag="contact-info";setTextColor(Color.rgb(178,198,234))};information.addView(contactInfo)
-        status=text("首次配置后连接车间中转",12f).apply {setPadding(dp(6),dp(10),dp(6),dp(6))};status.tag="status";information.addView(status,LinearLayout.LayoutParams(-1,-2))
+        status=text("首次配置后连接车间中转",12f).apply {visibility=View.GONE;setPadding(dp(6),dp(10),dp(6),dp(6))};status.tag="status";information.addView(status,LinearLayout.LayoutParams(-1,-2))
         val frame=FrameLayout(this).apply {setBackgroundColor(Color.WHITE);tag="media-frame"}
         image=TouchImageView(this).apply {tag="image";onZoom={engine?.setPaused(true)}}
         playerView=PlayerView(this).apply {useController=false;resizeMode=AspectRatioFrameLayout.RESIZE_MODE_FIT;setKeepContentOnPlayerReset(true);visibility=View.GONE}
         frame.addView(image,FrameLayout.LayoutParams(-1,-1));frame.addView(playerView,FrameLayout.LayoutParams(-1,-1))
         overlay=text("等待下发",24f).apply {gravity=Gravity.CENTER;setTextColor(Color.rgb(40,65,110));setBackgroundColor(Color.WHITE)}
         frame.addView(overlay,FrameLayout.LayoutParams(-1,-1));root.addView(frame,LinearLayout.LayoutParams(0,-1,1f))
-        itemLabel=text("—",14f).apply {setPadding(dp(6),dp(6),dp(6),dp(6))};itemLabel.tag="item-label";information.addView(itemLabel,LinearLayout.LayoutParams(-1,-2))
+        itemLabel=text("—",14f).apply {visibility=View.GONE;setPadding(dp(6),dp(6),dp(6),dp(6))};itemLabel.tag="item-label";information.addView(itemLabel,LinearLayout.LayoutParams(-1,-2))
         rail.addView(text("资料分类",12f).apply {setPadding(dp(6),0,dp(6),dp(8))})
         fun row(vararg views:View) {
             val line=LinearLayout(this)
@@ -184,6 +184,8 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         contactInfo.setIfChanged("最近通信：${localTime(info.lastContactAt)}")
         showCommunication(info.communication)
         this.status.setIfChanged(buildString {append(status);if(progress!=null)append(" · 下载 ${progress.completedFiles}/${progress.totalFiles}（${progress.receivedBytes*100/progress.totalBytes.coerceAtLeast(1)}%）");if(error!=null)append(" · $error")})
+        val statusVisibility=if(error!=null || progress!=null)View.VISIBLE else View.GONE
+        if(this.status.visibility!=statusVisibility)this.status.visibility=statusVisibility
         pauseButton.setIfChanged(if(paused)"继续" else "暂停")
         val count=manifest?.moduleItems(category)?.size ?: 0
         itemLabel.setIfChanged(if(count>0)"${modules[category]} · ${index+1} / $count"+(if(paused)" · 已暂停" else " · 循环播放") else "等待下发")

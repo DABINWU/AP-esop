@@ -1,3 +1,3 @@
 """Center application release version; independent of playlist and Android versions."""
 
-CENTER_VERSION = "1.0.2"
+CENTER_VERSION = "1.1.0"

@@ -17,7 +17,7 @@ def asset_usage(c, asset_id):
         raise MediaError('媒体资料已删除或不存在，请刷新资料列表', 404, 'asset_not_found')
     file_ids = {r[0] for r in c.execute('SELECT id FROM files WHERE asset_id=?', (asset_id,))}
     references = []
-    for version in c.execute('SELECT id,name,version,status,items,manifest FROM versions ORDER BY name,version,id'):
+    for version in c.execute('SELECT v.* FROM versions v LEFT JOIN version_retirements r ON r.version_id=v.id WHERE r.version_id IS NULL ORDER BY v.name,v.version,v.id'):
         items = json.loads(version['items'])
         manifest = json.loads(version['manifest']) if version['manifest'] else {}
         if not any(item.get('file', {}).get('id') in file_ids for item in items + manifest.get('items', [])):
@@ -30,6 +30,8 @@ def asset_usage(c, asset_id):
             pending_device_ids=[r[0] for r in c.execute('SELECT device_id FROM devices WHERE pending_version_id=? ORDER BY device_id', (vid,))],
             task_count=c.execute('SELECT COUNT(*) FROM tasks WHERE playlist_version_id=?', (vid,)).fetchone()[0]))
     blockers = []
+    if asset['status'] in ('retiring','expired'):
+        blockers.append('过期媒体的描述记录用于历史追溯，不能手动删除记录。')
     job = c.execute('SELECT status FROM conversion_jobs WHERE asset_id=?', (asset_id,)).fetchone()
     if asset['status'] in ('queued', 'processing') or (job and job['status'] in ('queued', 'running')):
         blockers.append('资料仍在排队或转换中，请等待完成后再删除。')
@@ -54,8 +56,14 @@ def cleanup_asset(db, asset_id):
             asset = c.execute('SELECT status FROM assets WHERE id=?', (asset_id,)).fetchone()
             if asset is None:
                 return
-            if asset['status'] != 'deleting':
+            if asset['status']=='expired':
+                return  # A concurrent worker/web cleanup already preserved the tombstone.
+            if asset['status'] not in ('deleting','retiring'):
                 raise RuntimeError('Asset must be marked deleting before cleanup')
+            ids={r[0] for r in c.execute('SELECT id FROM files WHERE asset_id=?',(asset_id,))}
+            preserve_records=asset['status']=='retiring' or any(
+                any(i['file']['id'] in ids for i in json.loads(v[0]))
+                for v in c.execute('SELECT v.items FROM versions v JOIN version_retirements r ON r.version_id=v.id'))
             root = db.settings.data_dir.resolve()
             if not re.fullmatch(r'asset_[0-9a-f]{32}', asset_id):
                 raise OSError('Invalid storage identifier')
@@ -88,13 +96,16 @@ def cleanup_asset(db, asset_id):
             for tree in trees:
                 if tree.exists():
                     shutil.rmtree(tree)
-            c.execute('DELETE FROM conversion_jobs WHERE asset_id=?', (asset_id,))
-            c.execute('DELETE FROM files WHERE asset_id=?', (asset_id,))
-            c.execute('DELETE FROM assets WHERE id=?', (asset_id,))
+            if preserve_records:
+                c.execute("UPDATE assets SET status='expired',error=NULL WHERE id=?",(asset_id,))
+            else:
+                c.execute('DELETE FROM conversion_jobs WHERE asset_id=?', (asset_id,))
+                c.execute('DELETE FROM files WHERE asset_id=?', (asset_id,))
+                c.execute('DELETE FROM assets WHERE id=?', (asset_id,))
     except OSError as exc:
         message = '文件删除未完成，请检查数据目录权限或文件占用后重试；系统也会自动重试。'
         with db.write() as c:
-            c.execute("UPDATE assets SET error=? WHERE id=? AND status='deleting'", (message, asset_id))
+            c.execute("UPDATE assets SET error=? WHERE id=? AND status IN ('deleting','retiring')", (message, asset_id))
         log.warning('media cleanup pending asset=%s error_type=%s', asset_id, type(exc).__name__)
         raise MediaError(message, 503, 'asset_delete_failed', {'asset_id': asset_id, 'status': 'deleting'}) from exc
 
@@ -115,7 +126,7 @@ def delete_asset(db, asset_id):
 
 def cleanup_deleting_assets(db):
     with db.read() as c:
-        ids = [r[0] for r in c.execute("SELECT id FROM assets WHERE status='deleting'")]
+        ids = [r[0] for r in c.execute("SELECT id FROM assets WHERE status IN ('deleting','retiring')")]
     for asset_id in ids:
         try:
             cleanup_asset(db, asset_id)

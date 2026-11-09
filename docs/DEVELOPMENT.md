@@ -99,12 +99,20 @@ Node DOM冒烟覆盖互斥可见、导航当前状态、历史地址/未知地�
 
 ## 中心发布版本
 
+v1.1.0/schema5增加version_retirements；published_immutable不改，历史items/manifest与文件描述保留。
+retention.plan/enforce/retire在同一写事务中选择新版+最多一个受保护旧版，冲突409；独占资产进入retiring→expired，
+worker约30秒重试。清理只删除字节，避免迟到旧实际回报使relay/sync依赖的文件描述消失。
+tests/test_retention.py验证配额/旧目标与实际保护/共用与草稿/重启恢复/迟到报告/并发。
+scripts.validate_relay的离线跨资料改派使用不同资料条目，另外专门验证同条目保留策略及真实Excel字节释放；不启动模拟器。
+
 中心系统版本唯一维护在`center/version.py`的CENTER_VERSION，左下角与FastAPI元信息共用此值。
 从v1.0.0开始记录；每次交付中心程序/界面更新，在构建镜像前递增版本并记录VALIDATION。
 一般修复递增末位（1.0.0→1.0.1），较大功能递增次位；上传资料、发布播放内容不改变系统版本。
 系统版本与Android APK及不可变playlist版本各自独立，禁止将发布资料的版本号填入系统版本。
 
 ## Android 原生播放器
+
+当前规则：2026-11-09起设备验证仅用用户真实安卓设备。以下模拟器流程为历史记录，不再默认执行或重建AVD。
 
 最低API23（Android6.0），compile/target34；Kotlin、Room和Media3，Gradle Wrapper固定版本与分发SHA。
 本机使用Android Studio自带JDK21、SDK34；JVM字节码目标17。详细安装步骤见`android/README.md`。

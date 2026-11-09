@@ -43,7 +43,7 @@ async function json(path, options) { return (await api(path, options)).json(); }
 function safe(action) { return async (...args) => { try { await action(...args); } catch (e) { notice(e.message); } }; }
 function button(text, action) { const b = node('button', text); b.type = 'button'; b.onclick = safe(action); return b; }
 function option(value, label) { const n = node('option', label); n.value = value; return n; }
-function versionLabel(id) { const v = versions.find(v => v.id === id);const p=playlists.find(p=>p.id===v?.playlist_id); return v ? `${v.name}${p?.task_number?' · '+p.task_number:''}${v.archived_at?'（已删除归档）':''}` : (id ? '历史资料' : '—'); }
+function versionLabel(id) { const v = versions.find(v => v.id === id);const p=playlists.find(p=>p.id===v?.playlist_id); return v ? `${v.name}${p?.task_number?' · '+p.task_number:''}${v.retired_at?'（已过期）':v.archived_at?'（已删除归档）':''}` : (id ? '历史资料' : '—'); }
 function latestPublished(){return playlists.map(p=>({p,v:versions.filter(v=>v.playlist_id===p.id&&v.status==='published'&&!v.archived_at).sort((a,b)=>b.version-a.version)[0]})).filter(row=>row.v);}
 function matchesSearch(p,query){return [p.task_number,p.name,p.description].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());}
 function paged(rows,page,prefix){const pages=Math.max(1,Math.ceil(rows.length/pageSize));page=Math.max(1,Math.min(page,pages));$(prefix+'-page').textContent=`共 ${rows.length} 条 · 第 ${page} / ${pages} 页`;$(prefix+'-prev').disabled=page===1;$(prefix+'-next').disabled=page===pages;return {page,rows:rows.slice((page-1)*pageSize,page*pageSize)};}

@@ -44,6 +44,9 @@ class PlayerIntegrationTest {
             assertTrue(value("date-info").contains("目标下发：") && !value("date-info").contains("—"))
             assertTrue(value("file-info").contains("视频"))
             scenario.onActivity { activity ->
+                for(tag in listOf("file-info","item-label","status"))assertEquals(android.view.View.GONE,activity.window.decorView.findViewWithTag<android.view.View>(tag).visibility)
+            }
+            scenario.onActivity { activity ->
                 val root=activity.window.decorView.findViewWithTag<android.view.View>("player-root")
                 val media=activity.window.decorView.findViewWithTag<android.view.View>("media-frame")
                 val rail=activity.window.decorView.findViewWithTag<android.view.View>("control-scroll")
@@ -52,6 +55,7 @@ class PlayerIntegrationTest {
                 val railBounds=android.graphics.Rect();rail.getGlobalVisibleRect(railBounds)
                 for(tag in listOf("title","status","item-label","previous","next","pause","replay","zoom-exit","module-production","module-inspection","module-check_video","module-custom")) {
                     val view=activity.window.decorView.findViewWithTag<android.view.View>(tag)
+                    if(view.visibility==android.view.View.GONE)continue
                     val position=IntArray(2);view.getLocationOnScreen(position)
                     assertTrue("$tag outside right control rail",position[0]>=railBounds.left && position[0]+view.width<=railBounds.right)
                 }

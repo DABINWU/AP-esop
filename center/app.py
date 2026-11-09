@@ -13,6 +13,9 @@ from fastapi import FastAPI, Depends, File, Form, UploadFile, HTTPException, Req
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from .version import CENTER_VERSION
+from .retention import enforce as retention_enforce, retire as retention_retire, run as retention_run
+from .asset_delete import cleanup_deleting_assets
+from pydantic import BaseModel, ConfigDict, Field
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -250,7 +253,7 @@ def create_app(settings=None):
     @app.get("/api/v1/assets", dependencies=[Depends(admin)])
     def assets():
         with db.read() as c:
-            return {"assets":[asset_view(c, a) for a in c.execute("SELECT * FROM assets ORDER BY created_at DESC,id")]}
+            return {"assets":[asset_view(c, a) for a in c.execute("SELECT * FROM assets WHERE status NOT IN ('retiring','expired') ORDER BY created_at DESC,id")]}
 
     @app.get('/api/v1/assets/{asset_id}/usage', dependencies=[Depends(admin)])
     def usage(asset_id: str):
@@ -264,6 +267,8 @@ def create_app(settings=None):
     @app.get("/api/v1/files/{file_id}", dependencies=[Depends(role)])
     def download(file_id: str):
         with db.read() as c:
+            retired=c.execute("SELECT 1 FROM files f JOIN assets a ON a.id=f.asset_id WHERE f.id=? AND a.status IN ('retiring','expired')",(file_id,)).fetchone()
+            if retired:raise MediaError('该媒体已按旧版本保留策略过期，请同步最新资料',410,'media_expired')
             row = c.execute("SELECT files.* FROM files JOIN assets ON assets.id=files.asset_id WHERE files.id=? AND assets.status!='deleting'", (file_id,)).fetchone()
             if row is None:
                 raise MediaError('媒体文件已删除、正在删除或不存在，请刷新资料列表', 404, 'asset_not_found')
@@ -289,7 +294,17 @@ def create_app(settings=None):
     def playlists():
         with db.read() as c:
             return {'playlists':[dict(p) for p in c.execute('SELECT * FROM playlists WHERE archived_at IS NULL ORDER BY rowid DESC')],
-                    'modules':MODULES, "versions":[version_view(v) for v in c.execute("SELECT v.*,a.archived_at FROM versions v LEFT JOIN version_archives a ON a.version_id=v.id ORDER BY v.created_at DESC,v.id")]}
+                    'modules':MODULES, "versions":[version_view(v) for v in c.execute("SELECT v.*,a.archived_at,r.retired_at FROM versions v LEFT JOIN version_archives a ON a.version_id=v.id LEFT JOIN version_retirements r ON r.version_id=v.id ORDER BY v.created_at DESC,v.id")]}
+
+    class RetentionInput(BaseModel):
+        model_config=ConfigDict(extra='forbid')
+        dry_run: bool=Field(default=True,strict=True)
+
+    @app.get('/api/v1/retention',dependencies=[Depends(admin)])
+    def retention_preview():return retention_run(db,True)
+
+    @app.post('/api/v1/retention',dependencies=[Depends(admin)])
+    def retention_apply(body: RetentionInput):return retention_run(db,body.dry_run)
 
     @app.delete('/api/v1/versions/{version_id}', dependencies=[Depends(admin)])
     def delete_version(version_id: str):
@@ -325,6 +340,8 @@ def create_app(settings=None):
             row = require_active_version(c, version_id)
             if row["status"] == "published":
                 return version_view(row)
+            expire_tasks(c)
+            retention=retention_enforce(c,row['playlist_id'],version_id)
             items = json.loads(row["items"])
             if not items:
                 raise MediaError("播放列表不能为空", 409)
@@ -360,7 +377,10 @@ def create_app(settings=None):
                 os.fsync(stream.fileno())
             os.replace(temporary, target)
             c.execute("UPDATE versions SET status='published',published_at=?,manifest=? WHERE id=?", (published_at, text, version_id))
-            return version_view(require_row(c, "versions", "id", version_id))
+            retention_retire(c,retention['retire_version_ids'])
+            result=version_view(require_row(c, "versions", "id", version_id))
+        cleanup_deleting_assets(db)
+        return result
 
     @app.post("/api/v1/devices", dependencies=[Depends(admin)])
     def register(body: DeviceCreate):

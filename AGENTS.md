@@ -3,12 +3,14 @@
 Read `docs/API_CONTRACT_V1.md` and `docs/plans/ACTIVE.md` before changing behavior.
 Center, Windows relay and Android Kotlin player are implemented; never claim MediaTek hardware validation from emulator tests.
 Android uses Room, local verified files and Media3; only contacts relay, never center/VPN/Google Play services.
+Per user preference, future Android device validation uses real Android hardware only. Do not create, start or recreate emulator data unless the user explicitly requests it. Existing emulator evidence is historical, not physical-device evidence.
+test-output currently also contains the live local center and relay directories referenced by LOCAL_INSTANCE.json and LOCAL_RELAY_INSTANCE.json; never treat those operational paths as disposable fixtures. Clean obsolete fixtures/install archives after retaining concise validation records; retain reusable build tools, final APKs and private signing data.
 Build android/ with its Gradle Wrapper, run JVM tests and lint; distinguish APK build, emulator and physical-device evidence.
 Relay runs one process with one download thread, independent sync/report threads, and a local SQLite volume.
 Preserve relay outbox/event identities, assignment revisions, immutable manifests and protected caches across updates.
 Run relay tests and real HTTP center/relay validation after protocol or synchronization changes.
 Preserve published manifests, referenced original media, task history and monotonic assignment revisions.
-Explicit media deletion may remove only unreferenced assets; block saved drafts and all published/history references.
+Explicit media deletion may remove only unreferenced assets; block saved drafts and all non-expired published/history references. The user-authorized two-publication retention policy can expire unused old publications and release exclusively referenced media; preserve immutable metadata/descriptors, protect runtime references and reject a publication that would require more than one protected old version.
 Use SQLite BEGIN IMMEDIATE for writes; keep the unique running-task constraint. One Web
 process and one conversion worker only. No network requests from center to workshop devices.
 Never embed keys in frontend, URLs or logs. Keep download authentication.

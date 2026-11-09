@@ -17,6 +17,8 @@ def require_active_playlist(c, playlist_id):
 def require_active_version(c, version_id):
     row = require_row(c, 'versions', 'id', version_id)
     require_active_playlist(c, row['playlist_id'])
+    if c.execute('SELECT 1 FROM version_retirements WHERE version_id=?',(version_id,)).fetchone():
+        raise MediaError('该版本已按两版本保留策略过期，请使用最新发布资料',410,'version_expired')
     if c.execute('SELECT 1 FROM version_archives WHERE version_id=?', (version_id,)).fetchone():
         raise MediaError('该版本已删除归档，请刷新并选择其他版本', 409, 'version_archived')
     return row
@@ -44,6 +46,7 @@ def asset_view(c, row):
 def version_view(row):
     result = dict(row)
     result.setdefault('archived_at', None)
+    result.setdefault('retired_at', None)
     result["items"] = json.loads(result["items"])
     result["manifest"] = json.loads(result["manifest"]) if result["manifest"] else None
     return result
