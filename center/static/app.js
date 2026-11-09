@@ -26,6 +26,7 @@ function showPage(page){
 globalThis.addEventListener('hashchange',()=>showPage(pageFromHash()));
 showPage(pageFromHash());
 let poll = null, lastDeployment = null, previewUrls = [], playbackTimer = null, previewGeneration = 0;
+let deploymentTasks=[];
 let playingItems = [], playingIndex = 0, paused = false;
 const labels = {queued:'等待转换', processing:'转换中', ready:'可用', failed:'失败', deleting:'删除未完成', running:'执行中', succeeded:'成功', timed_out:'已超时', published:'已发布', draft:'草稿', online:'在线', offline:'离线', unknown:'未知', playing:'播放', paused:'暂停', idle:'空闲', downloading:'下载中', error:'错误', pending:'待确认'};
 function node(tag, text, cls) { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (cls) n.className = cls; return n; }
@@ -148,6 +149,7 @@ function renderDeploymentTable(){
   const chosen=available.find(row=>row.v.id===selectedDeployment);
   $('deploy-selected').textContent=chosen?'已选择：'+chosen.p.name+' · '+(chosen.p.task_number||''):'尚未选择资料';
   $('deploy').disabled=!chosen;
+  renderDeploymentProgress();
   const result=paged(available.filter(row=>matchesSearch(row.p,$('deploy-search').value)),deploymentPage,'deploy');deploymentPage=result.page;
   $('deploy-list').replaceChildren();
   for(const {p,v} of result.rows){const tr=node('tr'),choice=node('td'),radio=node('input');radio.type='radio';radio.name='deployment-choice';radio.value=v.id;radio.checked=v.id===selectedDeployment;radio.setAttribute('aria-label','选择 '+p.name);radio.onchange=()=>{selectedDeployment=v.id;renderDeploymentTable();};choice.append(radio);
@@ -233,8 +235,16 @@ async function sendDeployment() {
 $('deploy').onclick = safe(async () => { const device_ids=[...document.querySelectorAll('.device-check:checked')].map(n=>n.value); if (!device_ids.length || !selectedDeployment) throw new Error('请选择资料和屏幕'); const picked=selectedDeployment;acceptVersions(await json('/playlists'));renderVersionSelectors();if(selectedDeployment!==picked)throw new Error('所选资料已更新，请重新选择后下发');lastDeployment={request_id:globalThis.crypto?.randomUUID?.() || 'web_'+Date.now()+'_'+Math.random().toString(36).slice(2),playlist_version_id:selectedDeployment,device_ids,timeout_seconds:Number($('deploy-timeout').value)}; await sendDeployment(); });
 $('retry-deploy').onclick = safe(sendDeployment);
 function renderTasks(tasks) {
+  deploymentTasks=tasks;renderDeploymentProgress();
   $('task-list').replaceChildren(); if (!tasks.length) $('task-list').append(node('p','暂无执行记录。'));
   for (const task of tasks) { const n = node('div',undefined,'task'); n.append(node('strong',`${labels[task.status]} · ${versionLabel(task.playlist_version_id)}`),node('small',` · ${task.created_at} · ${task.targets.length}台`)); const details=node('details'); details.append(node('summary',task.id)); details.append(node('p',`截止 ${task.expires_at}；结束 ${task.finished_at || '—'}`)); for(const t of task.targets) details.append(node('p',`${t.device_id} · revision ${t.assignment_revision} · ${labels[t.status] || t.status}${t.error?' · '+t.error:''}`)); n.append(details); $('task-list').append(n); }
+}
+function renderDeploymentProgress(){
+  const running=deploymentTasks.find(task=>task.status==='running');
+  const hint=$('deployment-progress');
+  if(!running){hint.textContent='当前无执行中的下发任务，可选择资料和屏幕下发；离线屏幕的待同步安排不会阻塞新任务。';return;}
+  const remaining=Math.max(0,Math.ceil((Date.parse(running.expires_at)-Date.now())/1000));
+  hint.textContent=`当前下发正在等待 ${running.targets.length} 台屏幕确认，截止 ${new Date(running.expires_at).toLocaleString()}。`+(remaining>0?`约 ${remaining} 秒后超时释放，届时可重新下发。`:'已到截止时间，正在刷新任务状态。')+' 离线屏幕无需上线才释放；目标安排会继续保留。';
 }
 
 function closePreview() { previewGeneration++; clearTimeout(playbackTimer); const video=$('preview-body').querySelector('video'); if(video) video.pause(); $('preview-dialog').close(); $('preview-body').classList.remove('screen-playback');$('preview-body').replaceChildren(); for(const url of previewUrls) URL.revokeObjectURL(url); previewUrls=[]; playingItems=[]; }

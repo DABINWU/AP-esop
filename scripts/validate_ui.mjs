@@ -88,6 +88,12 @@ assert.equal(nodes.get('deploy-list').childNodes[0].childNodes[0].childNodes[0].
 nodes.get('deploy-list').childNodes[0].childNodes[0].childNodes[0].onchange();
 assert.equal(vm.runInContext('selectedDeployment',context),'catalog-0-published-2');
 assert.equal(nodes.get('deploy').disabled,false);
+vm.runInContext(`renderTasks([{id:'offline-running',status:'running',playlist_version_id:'catalog-0-published-2',created_at:new Date().toISOString(),expires_at:new Date(Date.now()+120000).toISOString(),targets:[{device_id:'screen-a',status:'pending',assignment_revision:1}]}]);renderDeploymentTable();`,context);
+assert(nodes.get('deployment-progress').textContent.includes('超时释放'));
+assert.equal(nodes.get('deploy').disabled,false,'Pending offline task must not permanently disable the deployment selector');
+vm.runInContext(`renderTasks([{id:'offline-running',status:'timed_out',playlist_version_id:'catalog-0-published-2',created_at:new Date().toISOString(),expires_at:new Date().toISOString(),targets:[]}]);renderDeploymentTable();`,context);
+assert(nodes.get('deployment-progress').textContent.includes('待同步安排不会阻塞'));
+assert.equal(nodes.get('deploy').disabled,false);
 nodes.get('deploy-next').onclick();assert(nodes.get('deploy-page').textContent.includes('2 / 3'));
 nodes.get('deploy-search').value='Product 22';nodes.get('deploy-search').oninput();
 assert.equal(nodes.get('deploy-list').childNodes.length,1);

@@ -155,6 +155,8 @@ duration_seconds 必须 null；最后一项后回第一项。文件下载不意�
 created_at,expires_at,finished_at,targets[]`；target 有 `device_id,assignment_revision,status(pending/succeeded/failed),error`。
 终态不可回退，超时释放全车间任务锁但不撤销安排。目标全成功任务成功；目标全部结束且有失败则任务失败。
 超时任务仍可有 pending target，这是历史快照，不再推进。
+执行中的任务到期前仍全车间互斥，即使屏幕离线也返回409；错误文字提供截止UTC时间，管理页显示约剩余等待时间。
+单纯待同步的终端目标不占任务锁。再次下发是新任务，会产生新的超时窗口；没有管理员取消/抢占接口。
 
 `desired_assignment`：`device_id,assignment_revision,playlist_version_id,task_id,assigned_at,relay_acked_at`。
 revision 是中心持久化全局递增整数；接收方逐设备仅接受大于已保存 revision 的安排，

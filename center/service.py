@@ -107,8 +107,9 @@ def create_deployment(db, body):
             if existing["fingerprint"] != fingerprint:
                 raise MediaError("request_id 已用于不同内容", 409)
             return task_view(c, existing)
-        if c.execute("SELECT 1 FROM tasks WHERE status='running'").fetchone():
-            raise MediaError("车间已有执行中的下发任务", 409)
+        running = c.execute("SELECT * FROM tasks WHERE status='running'").fetchone()
+        if running:
+            raise MediaError(f"车间已有执行中的下发任务，截止时间（UTC）：{running['expires_at']}。屏幕离线时等待任务超时即可重新下发，无需等屏幕上线。", 409)
         version = require_active_version(c, body.playlist_version_id)
         if version["status"] != "published":
             raise MediaError("只能下发已发布版本", 409)

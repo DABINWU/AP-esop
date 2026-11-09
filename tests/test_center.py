@@ -184,6 +184,26 @@ def test_concurrent_task_lock_and_idempotency(env):
     assert deploy(env,v,winner["request_id"]).status_code == 409
 
 
+def test_offline_task_releases_at_deadline_without_any_screen_report(env, monkeypatch):
+    c, db, admin, relay = env
+    old, new = published(env), published(env)
+    register(env)
+    first = deploy(env, old).json()
+    deadline = datetime.fromisoformat(first['expires_at'].replace('Z', '+00:00'))
+    before = (deadline - timedelta(milliseconds=1)).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+    monkeypatch.setattr('center.db.now', lambda: before)
+    blocked = deploy(env, new, 'offline-second')
+    assert blocked.status_code == 409
+    assert first['expires_at'] in blocked.json()['error']['message']
+    monkeypatch.setattr('center.db.now', lambda: first['expires_at'])
+    accepted = deploy(env, new, 'offline-second')
+    assert accepted.status_code == 200
+    devices = c.get('/api/v1/devices', headers=admin).json()['devices']
+    assert all(d['desired']['playlist_version_id'] == new['id'] and d['pending'] for d in devices)
+    tasks = c.get('/api/v1/deployments', headers=admin).json()['tasks']
+    assert next(t for t in tasks if t['id'] == first['id'])['status'] == 'timed_out'
+
+
 def test_offline_latest_assignment_survives_restart_and_nonconsuming_poll(env):
     c, db, admin, relay = env
     v1, v2 = published(env), published(env)
