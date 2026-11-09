@@ -196,6 +196,30 @@ def test_blocked_report_does_not_block_other_events(env):
     assert status['outbox']==dict(pending=0,blocked=1)
 
 
+def test_download_status_excludes_released_history_but_keeps_needed_and_active(env):
+    env.engine.download_once()
+    for i in range(2,4):
+        env.upstream['snapshot']=snapshot('v'+str(i),i,data=env.data)
+        env.engine.sync_once();env.engine.download_once()
+    env.app.state.cache.cleanup(pressure=True)
+    def downloads():
+        return env.client.get('/api/v1/local/status',headers=env.admin).json()['downloads']
+    assert downloads()==[]
+    with env.app.state.db.read() as c:
+        assert c.execute("SELECT status FROM files WHERE id='file_v1'").fetchone()[0]=='missing'
+    env.upstream['snapshot']=snapshot('v4',4,data=env.data);env.engine.sync_once()
+    assert {d['file_id'] for d in downloads()}=={'file_v4'}
+    with env.app.state.db.write() as c:
+        c.execute("UPDATE files SET status='downloading' WHERE id='file_v1'")
+    assert {d['file_id'] for d in downloads()}=={'file_v1','file_v4'}
+
+
+def test_sync_returns_registered_screen_name_and_communication_threshold(env):
+    reply=env.client.post('/api/v1/device/sync',headers=env.device,json={'device_id':'screen-a','known_assignment_revision':0})
+    assert reply.status_code==200
+    assert reply.json()['device_name']=='1号屏' and reply.json()['offline_seconds']==40
+
+
 def test_no_local_task_mutation_and_keys_not_exposed(env):
     assert env.client.post('/api/v1/deployments',headers=env.admin,json={}).status_code==404
     assert env.client.get('/api/v1/local/status',headers=env.device).status_code==401

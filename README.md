@@ -6,6 +6,7 @@ VPN 由外部提供；中转主动访问中心，中心不能主动连接车间�
 
 Windows中转安装、后台服务、失败恢复、防火墙、访问和备份见[中转部署说明](relay/README.md)。
 APK构建、安装、屏幕编号、管理员设置及离线播放说明见[安卓部署说明](android/README.md)。
+当前正式安装包：[Android1.0.3 Release](android/dist/AP-ESOP-Player-1.0.3-release.apk)。正式签名与旧调试版不同，迁移规则见安卓部署说明。
 本次中心同步接口增加manifest摘要、关联PDF、历史revision和设备原始状态；部署中转前同步更新中心Web镜像。
 已有manifest与资料库不改写，SOP/SIP四模块、16:9、自动编号和已发布不可变语义继续沿用。
 

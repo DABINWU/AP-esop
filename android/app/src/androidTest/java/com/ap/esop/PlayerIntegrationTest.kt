@@ -39,6 +39,10 @@ class PlayerIntegrationTest {
             fun click(tag:String){scenario.onActivity {check(it.window.decorView.findViewWithTag<android.view.View>(tag)?.performClick()==true)}}
             fun waitFor(timeout:Long=60000,check:()->Boolean){val until=SystemClock.elapsedRealtime()+timeout;while(SystemClock.elapsedRealtime()<until){if(check())return;Thread.sleep(150)};assertTrue("Timed out: ${value("status")}",check())}
             waitFor {value("title").contains("安卓联调") && value("status").contains("安排已核对")}
+            waitFor {value("communication")=="中转通信正常"}
+            assertTrue(value("device-info").contains("1号装配屏"))
+            assertTrue(value("date-info").contains("目标下发：") && !value("date-info").contains("—"))
+            assertTrue(value("file-info").contains("视频"))
             scenario.onActivity { activity ->
                 val root=activity.window.decorView.findViewWithTag<android.view.View>("player-root")
                 val media=activity.window.decorView.findViewWithTag<android.view.View>("media-frame")

@@ -37,6 +37,13 @@ class MainActivity:ComponentActivity(),PlayerScreen {
     private lateinit var title:TextView
     private lateinit var status:TextView
     private lateinit var itemLabel:TextView
+    private lateinit var deviceInfo:TextView
+    private lateinit var fileInfo:TextView
+    private lateinit var dateInfo:TextView
+    private lateinit var communicationLabel:TextView
+    private lateinit var communicationLamp:View
+    private lateinit var contactInfo:TextView
+    private var communicationState=""
     private lateinit var overlay:TextView
     private lateinit var pauseButton:Button
     private val modules=linkedMapOf("production" to "SOP", "inspection" to "SIP", "check_video" to "点检视频", "custom" to "自定义")
@@ -54,7 +61,9 @@ class MainActivity:ComponentActivity(),PlayerScreen {
     private var expectedMediaId=""
     private fun dp(value:Int)=(value*resources.displayMetrics.density).toInt()
     private fun text(value:String,size:Float=16f)=TextView(this).apply {text=value;textSize=size;setTextColor(Color.WHITE);gravity=Gravity.CENTER_VERTICAL;setPadding(dp(10),0,dp(10),0)}
-    private fun button(value:String,action:()->Unit)=Button(this).apply {text=value;textSize=16f;isAllCaps=false;minHeight=dp(48);setTextColor(Color.WHITE);setTypeface(null,android.graphics.Typeface.BOLD);backgroundTintList=android.content.res.ColorStateList.valueOf(Color.rgb(40,87,189));setOnClickListener {action()} }
+    private fun button(value:String,action:()->Unit)=Button(this).apply {text=value;textSize=16f;isAllCaps=false;minHeight=dp(48);setTextColor(Color.WHITE);setTypeface(null,android.graphics.Typeface.BOLD)
+        background=android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x40ffffff),android.graphics.drawable.GradientDrawable().apply {cornerRadius=dp(10).toFloat();setColor(Color.rgb(40,87,189))},null)
+        backgroundTintList=android.content.res.ColorStateList.valueOf(Color.rgb(40,87,189));setOnClickListener {action()} }
     private fun TextView.setIfChanged(value:String){if(text.toString()!=value)text=value}
     override fun onCreate(savedInstanceState:Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,14 +76,24 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         header.addView(ImageView(this).apply {setImageResource(R.drawable.company_logo);setPadding(dp(5),dp(5),dp(5),dp(5));setOnLongClickListener{admin();true}},LinearLayout.LayoutParams(dp(52),dp(52)))
         title=text("艾普 ESOP · 等待下发",18f);title.tag="title";title.maxLines=3;title.ellipsize=android.text.TextUtils.TruncateAt.END;title.setOnLongClickListener{admin();true};header.addView(title,LinearLayout.LayoutParams(0,-2,1f))
         rail.addView(header,LinearLayout.LayoutParams(-1,-2))
-        status=text("首次配置后连接车间中转",12f).apply {setPadding(dp(6),dp(10),dp(6),dp(10))};status.tag="status";rail.addView(status,LinearLayout.LayoutParams(-1,-2))
+        val information=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(8),dp(10),dp(8),dp(10));background=android.graphics.drawable.GradientDrawable().apply {cornerRadius=dp(10).toFloat();setColor(Color.rgb(29,47,87));setStroke(dp(1),Color.rgb(52,75,122))}}
+        rail.addView(information,LinearLayout.LayoutParams(-1,-2).apply {setMargins(0,dp(12),0,dp(14))})
+        val signal=LinearLayout(this).apply {gravity=Gravity.CENTER_VERTICAL;setPadding(dp(6),0,dp(6),dp(8))}
+        communicationLamp=View(this);signal.addView(communicationLamp,LinearLayout.LayoutParams(dp(12),dp(12)))
+        communicationLabel=text("通信待核对",14f).apply {tag="communication";setTypeface(null,android.graphics.Typeface.BOLD)};signal.addView(communicationLabel,LinearLayout.LayoutParams(0,-2,1f));information.addView(signal)
+        deviceInfo=text("屏幕：等待配置",13f).apply {tag="device-info";setPadding(dp(6),dp(5),dp(6),dp(5))};information.addView(deviceInfo)
+        fileInfo=text("资料：等待下发",13f).apply {tag="file-info";setPadding(dp(6),dp(5),dp(6),dp(5))};information.addView(fileInfo)
+        dateInfo=text("资料发布：—\n目标下发：—",12f).apply {tag="date-info";setPadding(dp(6),dp(5),dp(6),dp(5))};information.addView(dateInfo)
+        contactInfo=text("最近通信：尚未验证",11f).apply {tag="contact-info";setTextColor(Color.rgb(178,198,234))};information.addView(contactInfo)
+        status=text("首次配置后连接车间中转",12f).apply {setPadding(dp(6),dp(10),dp(6),dp(6))};status.tag="status";information.addView(status,LinearLayout.LayoutParams(-1,-2))
         val frame=FrameLayout(this).apply {setBackgroundColor(Color.WHITE);tag="media-frame"}
         image=TouchImageView(this).apply {tag="image";onZoom={engine?.setPaused(true)}}
         playerView=PlayerView(this).apply {useController=false;resizeMode=AspectRatioFrameLayout.RESIZE_MODE_FIT;setKeepContentOnPlayerReset(true);visibility=View.GONE}
         frame.addView(image,FrameLayout.LayoutParams(-1,-1));frame.addView(playerView,FrameLayout.LayoutParams(-1,-1))
         overlay=text("等待下发",24f).apply {gravity=Gravity.CENTER;setTextColor(Color.rgb(40,65,110));setBackgroundColor(Color.WHITE)}
         frame.addView(overlay,FrameLayout.LayoutParams(-1,-1));root.addView(frame,LinearLayout.LayoutParams(0,-1,1f))
-        itemLabel=text("—",14f).apply {setPadding(dp(6),dp(6),dp(6),dp(12))};itemLabel.tag="item-label";rail.addView(itemLabel,LinearLayout.LayoutParams(-1,-2))
+        itemLabel=text("—",14f).apply {setPadding(dp(6),dp(6),dp(6),dp(6))};itemLabel.tag="item-label";information.addView(itemLabel,LinearLayout.LayoutParams(-1,-2))
+        rail.addView(text("资料分类",12f).apply {setPadding(dp(6),0,dp(6),dp(8))})
         fun row(vararg views:View) {
             val line=LinearLayout(this)
             views.forEach {
@@ -94,6 +113,7 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         rail.addView(button("管理员"){admin()},LinearLayout.LayoutParams(-1,dp(52)))
         val railWidth=dp((resources.configuration.screenWidthDp*.22f).toInt().coerceIn(176,280))
         root.addView(scroll,LinearLayout.LayoutParams(railWidth,-1));setContentView(root)
+        showCommunication("unknown")
         onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){admin()}})
     }
     override fun onStart() {
@@ -156,8 +176,13 @@ class MainActivity:ComponentActivity(),PlayerScreen {
     }
     override fun pause(paused:Boolean) {if(activeItem?.type=="video")player?.playWhenReady=!paused}
     override fun videoPosition()=if(activeItem?.type=="video")player?.currentPosition ?: 0 else 0
-    override fun update(manifest:Manifest?,category:String,index:Int,paused:Boolean,status:String,error:String?,progress:Progress?) {
+    override fun update(manifest:Manifest?,category:String,index:Int,paused:Boolean,status:String,error:String?,progress:Progress?,info:PlayerInfo) {
         title.setIfChanged(manifest?.name ?: "艾普 ESOP · 等待下发")
+        deviceInfo.setIfChanged("屏幕：${info.deviceName}\n编号：${info.deviceId}")
+        fileInfo.setIfChanged(if(manifest==null)"资料：等待下发" else "当前资料：${manifest.name}\n共 ${manifest.items.count {it.type!="video"}} 页图片 · ${manifest.items.count {it.type=="video"}} 个视频")
+        dateInfo.setIfChanged("资料发布：${localTime(manifest?.publishedAt)}\n目标下发：${localTime(info.assignedAt)}")
+        contactInfo.setIfChanged("最近通信：${localTime(info.lastContactAt)}")
+        showCommunication(info.communication)
         this.status.setIfChanged(buildString {append(status);if(progress!=null)append(" · 下载 ${progress.completedFiles}/${progress.totalFiles}（${progress.receivedBytes*100/progress.totalBytes.coerceAtLeast(1)}%）");if(error!=null)append(" · $error")})
         pauseButton.setIfChanged(if(paused)"继续" else "暂停")
         val count=manifest?.moduleItems(category)?.size ?: 0
@@ -167,6 +192,19 @@ class MainActivity:ComponentActivity(),PlayerScreen {
             val opacity=if(size==0).35f else if(selected)1f else .8f;if(b.alpha!=opacity)b.alpha=opacity
         }
         if(manifest==null){overlay.setIfChanged(error ?: "等待下发");overlay.visibility=View.VISIBLE}
+    }
+    private fun localTime(value:String?):String {
+        if(value==null)return "—"
+        val date=listOf("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'","yyyy-MM-dd'T'HH:mm:ss'Z'").firstNotNullOfOrNull {pattern->runCatching {java.text.SimpleDateFormat(pattern,java.util.Locale.US).apply {timeZone=java.util.TimeZone.getTimeZone("UTC");isLenient=false}.parse(value)}.getOrNull()} ?: return "时间待核对"
+        return java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",java.util.Locale.getDefault()).format(date)
+    }
+    private fun showCommunication(value:String) {
+        if(communicationState==value)return
+        communicationState=value
+        val (label,color)=when(value){"online"->"中转通信正常" to Color.rgb(76,210,139);"offline"->"中转通信异常" to Color.rgb(255,112,112);"pending"->"通信等待确认" to Color.rgb(255,201,87);else->"通信尚未核对" to Color.rgb(163,179,205)}
+        communicationLabel.setIfChanged(label);communicationLabel.setTextColor(color)
+        communicationLamp.background=android.graphics.drawable.GradientDrawable().apply {shape=android.graphics.drawable.GradientDrawable.OVAL;setColor(color)}
+        communicationLamp.contentDescription=label
     }
     private fun admin() {
         if(settingsOpen)return

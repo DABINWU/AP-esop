@@ -126,3 +126,8 @@ $env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
 创建独立Docker中心、Windows中转和HTTP故障代理，不修改本地正式测试实例的任务/文件/密码。
 SDK通过ANDROID_SDK_ROOT指定，运行需Docker、adb和已生成的媒体夹具。模拟器分辨率建议1920×1080。
 脚本记录实际中心状态、仪器测试和画面；不等同联发科硬件、Android6或长时间播放验收。
+
+当前测试脚本默认端口5560/5562，可用ESOP_ANDROID_SERIAL_A/B覆盖；执行前要求AVD名为ESOP_API29_A/B，
+避免清空用户正在使用的其他模拟器。旧端口示例仅作历史说明。
+Gradle8.7使用JDK17/21；新版Android Studio若自带JBR25，在Gradle JDK设置中选择17/21，不能直接沿用JBR25。
+本机测试JDK21单独下载至test-output/android-tools/jdk21并校验官方SHA，不修改系统默认Java。

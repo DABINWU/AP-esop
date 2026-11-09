@@ -69,6 +69,6 @@ data class Manifest(val schemaVersion:Int,val playlistVersionId:String,val name:
     fun firstCategory()=listOf("production","inspection","check_video","custom").first { moduleItems(it).isNotEmpty() }
 }
 data class Assignment(val deviceId:String,val assignmentRevision:Long,val playlistVersionId:String,val taskId:String,val assignedAt:String,val relayAckedAt:String?)
-data class SyncReply(val serverTime:String,val heartbeatSeconds:Int,val assignment:Assignment?,val manifest:JsonObject?,val ready:Boolean,val error:String?,val manifestSha256:String?,val reportSeqFloor:Long)
+data class SyncReply(val serverTime:String,val heartbeatSeconds:Int,val assignment:Assignment?,val manifest:JsonObject?,val ready:Boolean,val error:String?,val manifestSha256:String?,val reportSeqFloor:Long,val deviceName:String?=null,val offlineSeconds:Int?=null)
 data class Progress(val playlistVersionId:String,val receivedBytes:Long,val totalBytes:Long,val completedFiles:Int,val totalFiles:Int)
 data class Report(val eventId:String,val deviceId:String,val reportSeq:Long,val observedAt:String,val assignmentRevision:Long,val actualVersionId:String?,val currentItemId:String?,val playbackState:String,val pendingVersionId:String?,val error:String?,val downloadProgress:Progress?)

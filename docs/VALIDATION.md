@@ -524,6 +524,62 @@ Python133项通过：`test-output/pytest-offline-task-hint.xml`；中心/账号D
 HTTP确认首页含v1.0.0且没有未替换占位符；不改数据库、资料、派发、账号、中转或安卓。
 此轮未新增真实浏览器视觉或实机验收。
 
+## 2026-11-09 中心v1.0.1操作按钮顺序
+
+编辑器底部统一从左至右显示：保存排序与秒数 → 预览当前模块 → 发布资料，蓝色箭头标注顺序。
+窄屏整组横向滚动，避免换行后箭头顺序混乱；原按钮ID、保存/预览/发布处理逻辑保持不变。
+系统版本递增v1.0.1，中心/账号DOM检查通过；Python133项通过（`test-output/pytest-workflow-buttons.xml`）。
+构建并更新本机中心Web，HTTP核对按钮顺序、两处箭头及左下角v1.0.1；未新增浏览器视觉验收。
+
+## 2026-11-09 中转历史missing误列为下载
+
+用户截图5个missing文件逐一与本机中转SQLite核对：全部为不再被目标、当前/上一有效、实际/待更新、outbox引用的历史缓存；
+5条记录error均为空，15个缓存ready，受保护版本缺失文件数0。是过期历史缓存正常释放后，状态页仍将所有非ready记录列成下载。
+
+local/status的downloads改为仅列受保护版本未就绪及正在下载的文件，历史身份映射与missing记录保持不变。
+页面missing翻译“待下载”，空队列说明当前所需缓存已就绪、已释放历史缓存不列入待下载。没有更改下载/清理/激活语义。
+新增回归验证历史释放隐藏、当前缺失保留、在途下载保留；Python134项通过（`test-output/pytest-relay-cache-status.xml`）。
+真实Docker中心→Windows中转HTTP验证通过：`test-output/relay-http/1794190154342871700/result.json`，
+含真实Excel/PDF/视频、Range、断线队列、重启、最新目标和账号会话。终端请求模拟，不作为安卓实机验收。
+中转后台服务重启后健康、中心在线，实际downloads为空；SQLite仍保留missing5/ready15，
+证据`test-output/relay-cache-status-local.json`。原6份发布清单核对不变，无账号/目标改动。
+本轮仅改中转及共享状态展示说明，中心系统版本/安卓APK未更新。
+
+## 2026-11-09 中心v1.0.2登记表单与状态标签
+
+固定device_id、屏幕名称、登记按钮整行移到overview内，位于五个统计块上方；接收屏幕区域只保留下发操作和设备表。
+设备连接状态加粗并使用带边框色块：在线绿色、离线红色、未知灰色；待同步独立黄色，保留文字避免仅靠颜色辨识。
+未修改状态计算、离线阈值、心跳或登记/下发接口。系统版本递增v1.0.2。
+中心/账号DOM检查通过，Python134项通过（`test-output/pytest-screen-badges.xml`）。
+构建更新本机Web，HTTP核对表单位于统计块上方、标签样式与版本生效；未新增真实浏览器视觉验收。
+
+## 2026-11-09 Android1.0.3正式Release、信息卡与通信灯
+
+右侧所有自定义按钮采用圆角/按压反馈，分类和播放操作移到信息卡下方。卡片显示登记屏幕名、device_id、
+当前资料/图片视频项数、资料发布与目标下发本地时间、最近通信。目标下发对应最新assignment.assigned_at，
+不冒充旧资料的发布日期。device_name/offline_seconds为中转兼容新增字段，旧中转回退编号/40秒。
+通信灯仅表示App↔中转：启动灰、仅同步待回报确认黄、同步及报告近期均成功绿、失败或超时红；离线继续本地播放。
+135项Python、18项JVM和Release Lint 0错误/13警告通过。真实中心→中转回归：
+`test-output/relay-http/1794192400165435000/result.json`。本机中转已更新，原6份发布清单摘要不变，凭据及目标不改。
+
+正式包`android/dist/AP-ESOP-Player-1.0.3-release.apk`，com.ap.esop，code4，min23/target34，非debuggable，5109276字节。
+SHA256 `94885595f5413d471a6370fdae014f2346aaf60990cddd674dea2c57a5b707c9`。
+专用Release证书SHA256 `59f6df3cf95e351abb5246158b6c0cc7773513b8ac9903d45dfeaccfa3d346a4`，
+key/password在受限android/signing目录，Git与Docker均排除。用户要求正式包，未交付并存预览版。
+旧debug签名已丢失，用户确认没有/不确定备份；新正式签名不能覆盖旧调试版。安装需卸载旧版时必须新登记device_id，
+不得重置旧编号报告序号。未来正式更新沿用新签名。用户当前emulator-5554只读核对APK证书，没有卸载、清数据或安装。
+
+Release本体使用同正式签名仪器测试包进行完整联调，通过记录：
+`test-output/android-http/1794193713199350000/result.json`（SHA与交付包一致）。
+测试AVD仅ESOP_API29_A/B，独立端口5560/5562；安装前校验AVD名，禁止清理用户其他模拟器。
+仪器测试覆盖屏幕名称、日期、绿灯以及原按钮/缩放/循环，真实中转停机后红灯且恢复本地内容；
+多次改派、新下载503保留旧内容、视频首帧及双屏在线通过。对应实际截图controls-playback.png与offline-restored.png。
+JDK25不兼容既有Gradle8.7，另装校验官方SHA的JDK21后构建。Release签名/元信息证据：
+`test-output/android-tools/release-signature.json`与release-verification.json。
+仍未完成用户真实一体机、Android6、断电/温度/长期运行验收；正式构建不代表上述实机验收已完成。
+Release另在专用AVD切换1440×720/density320检查信息区和侧栏独立滚动、管理员可达，通过；
+`test-output/android-tools/compact-player-release.log`及right-rail-phone-top/bottom.png，检查后恢复分辨率。
+
 ## 现场验收建议
 
 1. 在群晖按README部署，确认两个health状态、单Web worker、目录权限和日志轮转。

@@ -1,18 +1,30 @@
+import java.util.Properties
+
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.kapt") }
+val releasePropertiesFile=rootProject.file("signing/release.properties")
+val releaseProperties=Properties().apply {if(releasePropertiesFile.isFile)releasePropertiesFile.inputStream().use {load(it)}}
+check(!gradle.startParameter.taskNames.any {it.contains("release",ignoreCase=true)} || releasePropertiesFile.isFile) {"Release signing configuration missing: android/signing/release.properties"}
 android {
     namespace = "com.ap.esop"
     compileSdk = 34
     defaultConfig {
         applicationId = "com.ap.esop"
+        resValue("string","app_name","艾普 ESOP")
         minSdk = 23
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
-    buildTypes { release { isMinifyEnabled = false } }
+    signingConfigs {if(releasePropertiesFile.isFile)create("esopRelease") {
+        storeFile=rootProject.file(releaseProperties.getProperty("storeFile"))
+        storePassword=releaseProperties.getProperty("storePassword")
+        keyAlias=releaseProperties.getProperty("keyAlias")
+        keyPassword=releaseProperties.getProperty("keyPassword")
+    }}
+    buildTypes { release { isMinifyEnabled = false;isDebuggable=false;signingConfig=signingConfigs.findByName("esopRelease") } }
     testOptions { unitTests.isReturnDefaultValues = true }
 }
 kapt { arguments { arg("room.schemaLocation", "$projectDir/schemas") } }

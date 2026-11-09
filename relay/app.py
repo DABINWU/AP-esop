@@ -127,8 +127,10 @@ def create_app(settings=None, *, background=True, client=None):
                     message = row['error'] if row else '清单尚未同步'
             # Recheck after file verification: sync ingestion uses this lock as well.
             with db.read() as c:
-                seq=c.execute('SELECT report_seq FROM devices WHERE device_id=?',(body.device_id,)).fetchone()[0]
+                device_row=c.execute('SELECT report_seq,name FROM devices WHERE device_id=?',(body.device_id,)).fetchone()
+                seq=device_row['report_seq']
             return dict(server_time=now(), heartbeat_seconds=db.meta('heartbeat_seconds', s.heartbeat_seconds),
+                        device_name=device_row['name'],offline_seconds=db.meta('offline_seconds',s.offline_seconds),
                         assignment=assignment, manifest=manifest, ready=ready, error=None if ready else message,
                         manifest_sha256=row['sha256'] if ready else None,
                         report_seq_floor=seq)
@@ -228,8 +230,11 @@ def create_app(settings=None, *, background=True, client=None):
                     report_seq=row['report_seq'],reported_assignment_revision=r.get('assignment_revision',0),error=r.get('error'),
                     sync_error='；'.join(v for v in ((version[0] if version else None),(blocked[0] if blocked else None)) if v) or None,
                     download_progress=r.get('download_progress')))
+            protected=store.protected_versions(c)
+            needed_files={r[0] for version_id in protected for r in c.execute('SELECT file_id FROM version_files WHERE version_id=?',(version_id,))}
             downloads = [dict(file_id=r['id'],status=r['status'],received_bytes=r['received_bytes'],
-                              size_bytes=json.loads(r['descriptor'])['size_bytes'],error=r['error']) for r in c.execute("SELECT * FROM files WHERE status!='ready'")]
+                              size_bytes=json.loads(r['descriptor'])['size_bytes'],error=r['error']) for r in c.execute("SELECT * FROM files WHERE status!='ready'")
+                         if r['id'] in needed_files or r['status']=='downloading']
             outbox = {state:c.execute('SELECT count(*) FROM events WHERE delivery=?',(state,)).fetchone()[0] for state in ('pending','blocked')}
         return dict(server_time=now(),relay_id=s.relay_id,center=center,
             configuration=dict(configured=True,heartbeat_seconds=db.meta('heartbeat_seconds',s.heartbeat_seconds),offline_seconds=db.meta('offline_seconds',s.offline_seconds)),

@@ -22,6 +22,9 @@ data class DeviceConfig(val relayUrl:String,val deviceId:String,val deviceKey:St
 
 class DeviceSettings(context:Context) {
     private val prefs=context.getSharedPreferences("protected_device",Context.MODE_PRIVATE)
+    private val display=context.getSharedPreferences("device_display",Context.MODE_PRIVATE)
+    fun deviceName(id:String)=display.getString("name_$id",null)?.takeIf {it.isNotBlank()} ?: id
+    fun rememberDeviceName(id:String,name:String) {if(display.getString("name_$id",null)!=name)check(display.edit().putString("name_$id",name.take(120)).commit())}
     private val alias="AP_ESOP_CONFIG_V1"
     private fun key():SecretKey {
         val store=KeyStore.getInstance("AndroidKeyStore").apply { load(null) }

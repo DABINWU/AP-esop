@@ -18,7 +18,7 @@ MediaTek芯片不能说明Android系统版本和硬解能力，必须现场核�
 
 ```powershell
 # 在android目录，JAVA_HOME指向本机JDK17/21
-$env:JAVA_HOME='C:\Program Files\Android\Android Studio\jbr'
+$env:JAVA_HOME='C:\path\to\jdk-21'
 .\gradlew.bat assembleDebug testDebugUnitTest lintDebug
 # 构建模拟器/实机仪器测试APK
 .\gradlew.bat assembleDebugAndroidTest
@@ -29,6 +29,23 @@ Linux/macOS可chmod +x gradlew后执行./gradlew。Debug产物：app/build/outpu
 本机交付副本：[AP-ESOP-Player-debug.apk](dist/AP-ESOP-Player-debug.apk)，生成文件不提交Git，重新构建可恢复。
 1.0.1/code2修复首次连接无下发资料时manifest:null解析失败；旧版可直接覆盖安装，保持原签名，不必卸载或清除数据。
 1.0.2/code3将Logo、资料名称、连接/下载状态、分类、播放操作及管理员入口统一放到右侧控制栏，左侧媒体使用完整高度。
+1.0.3/code4：圆角按钮下移，上方信息卡显示屏幕名称/编号、当前资料及图片视频项数、资料发布/目标下发本地时间。
+屏幕名称来自中转device_name，本地保留供离线显示；旧中转回退device_id。
+通信灯：灰色尚未核对、黄色报告待确认、绿色近期同步和报告均成功、红色失败或超时。
+阈值沿用中转offline_seconds（默认40秒）；仅表示App与中转通信，不证明中心或物理背光正常。
+
+## 正式Release安装与签名（从1.0.3开始）
+
+交付`dist/AP-ESOP-Player-1.0.3-release.apk`，com.ap.esop，Android6.0+，非debuggable。
+本机旧调试签名已丢失且无备份，新正式签名无法覆盖11月7日旧调试版；签名冲突时需先卸载旧版再安装。
+卸载会删除App配置、缓存和报告序号。请先记下中转地址/终端密钥，在中心登记新的唯一device_id后配置新版，
+不能继续冒用有历史序号的旧编号。旧屏幕历史记录保留；项目不提供匿名重置序号接口。
+
+正式签名保存在`android/signing/esop-release.jks`和`release.properties`，已限制本机权限，并从Git/Docker构建上下文排除。
+管理员必须安全备份整个signing目录，不能提交Git、分享给普通用户或随程序清理；丢失后同样无法覆盖升级。
+后续正式版沿用该签名，并增加versionCode，即可覆盖安装保留配置；不再依赖自动生成的debug.keystore。
+构建：使用JDK17/21运行`gradlew.bat assembleRelease lintRelease`；缺少签名配置时Release任务明确拒绝。
+密码仅在本机受限配置文件中，不写入代码、APK业务配置或构建日志。
 侧栏宽度随屏幕调整（176–280dp）；高度不足时侧栏独立滚动，媒体区不随之滚动。仍按contain完整等比显示。
 Debug以本机构建密钥签名，仅用于验证；后续更新必须保持同一签名，生产签名密钥应由管理员专门保管，不提交仓库。
 卸载/清除App数据会丢失设备序号，不能用原device_id静默重新登记。

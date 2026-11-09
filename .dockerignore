@@ -12,3 +12,4 @@ android/local.properties
 android/**/*.jks
 android/**/*.keystore
 android/dist
+android/signing

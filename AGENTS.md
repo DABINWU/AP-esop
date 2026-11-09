@@ -18,3 +18,4 @@ An explicit screen_16_9 upload may fit each visible sheet onto one 1920x1080 pla
 Direct PDF uploads keep existing pages and bypass Office parsing; do not claim this fixes Excel shape conversion.
 Keep the API contract and validation evidence aligned with implementation.
 For each delivered center code/UI update, increment CENTER_VERSION in center/version.py before building/deploying; document the release in docs/VALIDATION.md. This system version is independent of uploaded content and playlist versions.
+Android deliveries use the existing private android/signing release key and increment versionCode/versionName. Never replace/regenerate an existing signing key, commit signing credentials, or tell users a differently signed APK can preserve data by overwriting. Missing release credentials must fail the build clearly.

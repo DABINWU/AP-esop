@@ -6,11 +6,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
 
+data class PlayerInfo(val deviceId:String,val deviceName:String,val assignedAt:String?,val communication:String,val lastContactAt:String?)
+
 interface PlayerScreen {
     fun render(item:PlayItem,file:File,paused:Boolean,position:Long,ready:()->Unit,ended:()->Unit,failed:(String)->Unit)
     fun pause(paused:Boolean)
     fun videoPosition():Long
-    fun update(manifest:Manifest?,category:String,index:Int,paused:Boolean,status:String,error:String?,progress:Progress?)
+    fun update(manifest:Manifest?,category:String,index:Int,paused:Boolean,status:String,error:String?,progress:Progress?,info:PlayerInfo)
 }
 
 class PlayerEngine(private val app:PlayerApplication,private val config:DeviceConfig,private val screen:PlayerScreen) {
@@ -29,6 +31,12 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
     private var identityVerified=false
     private var verified=false
     private var online=false
+    private var deviceName=config.deviceId
+    private var offlineSeconds=40L
+    private var lastSync=0L
+    @Volatile private var lastReport=0L
+    @Volatile private var reportFailed=false
+    @Volatile private var lastContactAt:String?=null
     private var lastError:String?=null
     private var networkError:String?=null
     private var transfer:Progress?=null
@@ -48,6 +56,7 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
           try {
             app.lastSave?.await()
             state=withContext(Dispatchers.IO){repo.load()}
+            deviceName=withContext(Dispatchers.IO){app.settings.deviceName(config.deviceId)}
             identityVerified=withContext(Dispatchers.IO){(repo.dao.counter("report_seq") ?: 0)>0}
             desired=state.desiredJson?.let { Wire.gson.fromJson(it,Assignment::class.java) }
             restore()
@@ -82,6 +91,9 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
             check(reply.reportSeqFloor<=sequence) { "设备编号已被其他安装使用，请管理员分配新编号" }
             identityVerified=true
             online=true;networkError=null;heartbeat=reply.heartbeatSeconds.toLong().coerceIn(1,3600)
+            lastSync=android.os.SystemClock.elapsedRealtime();lastContactAt=Wire.utc()
+            offlineSeconds=(reply.offlineSeconds?.toLong() ?: 40L).coerceAtLeast(heartbeat+1)
+            reply.deviceName?.takeIf {it.isNotBlank()}?.let {name->deviceName=name.take(120);withContext(Dispatchers.IO){runCatching {app.settings.rememberDeviceName(config.deviceId,deviceName)}}}
             val a=reply.assignment
             if(a==null){verified=state.activeVersion==null;update();return}
             require(a.deviceId==config.deviceId && a.assignmentRevision>=state.knownRevision) { "中转返回了过期安排" }
@@ -235,16 +247,18 @@ class PlayerEngine(private val app:PlayerApplication,private val config:DeviceCo
     private suspend fun flush() {
         for(event in repo.dao.pending()) {
             if(event.error!=null)continue
-            try {val outcome=client.report(event.payload);check(outcome in setOf("accepted","duplicate","stale"));repo.dao.remove(event.eventId)}
+            try {val outcome=client.report(event.payload);check(outcome in setOf("accepted","duplicate","stale"));repo.dao.remove(event.eventId);lastReport=android.os.SystemClock.elapsedRealtime();lastContactAt=Wire.utc();reportFailed=false}
             catch(e:CancellationException){throw e}
-            catch(e:RelayFailure){if(e.status in listOf(400,404,409,422)){repo.dao.block(event.eventId,"回报被拒绝（${e.status}），请管理员检查");withContext(Dispatchers.Main){lastError="有播放报告被中转拒绝，请管理员检查";update()}}else return}
-            catch(e:Exception){return}
+            catch(e:RelayFailure){reportFailed=true;if(e.status in listOf(400,404,409,422)){repo.dao.block(event.eventId,"回报被拒绝（${e.status}），请管理员检查");withContext(Dispatchers.Main){lastError="有播放报告被中转拒绝，请管理员检查";update()}}else return}
+            catch(e:Exception){reportFailed=true;return}
         }
     }
     private fun update() {
         val pending=desired?.assignmentRevision!=null && desired?.assignmentRevision!=state.activeRevision
-        val status=when { !online->"离线 / 最新安排待核对";!verified->if(pending)"新资料准备中 · 保留本地播放" else "安排待核对";else->"中转已连接 · 安排已核对" }
-        screen.update(manifest,state.category,state.itemIndex,state.paused,status,lastError ?: networkError,transfer)
+        val elapsed=android.os.SystemClock.elapsedRealtime()
+        val communication=CommunicationHealth.state(online,networkError!=null,reportFailed,lastSync,lastReport,elapsed,offlineSeconds)
+        val status=when { !online || communication=="offline"->"离线 / 最新安排待核对";!verified->if(pending)"新资料准备中 · 保留本地播放" else "安排待核对";else->"中转已连接 · 安排已核对" }
+        screen.update(manifest,state.category,state.itemIndex,state.paused,status,lastError ?: networkError,transfer,PlayerInfo(config.deviceId,deviceName,desired?.assignedAt,communication,lastContactAt))
     }
     private fun safeError(e:Exception)=when(e){is RelayFailure->e.message ?: "中转访问失败";is IllegalArgumentException,is IllegalStateException->e.message ?: "文件或协议校验失败";else->"中转连接中断，继续本地播放"}
     fun stop() {

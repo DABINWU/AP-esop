@@ -266,6 +266,11 @@ reports、sync、acks 都更新中转联系时间；只有 report 更新屏幕�
 Android实现补充（兼容增加）：device/sync新增`manifest_sha256`（ready时同中心清单规范JSON摘要，
 否则null）、`report_seq_floor`（该屏中转已接受最大report_seq）。终端验证清单摘要、不可变ID/文件映射，
 只下载manifest根items引用的图片和视频，不下载PDF或Excel原件。
+显示信息兼容扩展：device/sync另返回`device_name`（中心登记的屏幕名称）与`offline_seconds`（通信超时阈值，默认40）。
+例如`{"device_name":"装配1号屏","offline_seconds":40}`，与原响应字段合并；旧中转未返回时App回退device_id与40秒。
+终端显示目标下发时间使用assignment.assigned_at，资料发布日期使用manifest.published_at，不能混用。
+通信灯仅表示App与中转：首次尚未验证为灰，双向同步及报告确认均正常为绿，报告待确认为黄，请求失败/超过阈值为红；
+不证明中心在线或物理屏幕背光正常，恢复本地内容后须重新取得通信证据，不能沿用旧绿灯。
 首次安装本地seq=0但report_seq_floor>0时拒绝冒用已使用device_id，要求管理员另登记新编号；不静默重置/跳号。
 device_report可选`download_progress`，结构为
 `{"playlist_version_id":"ver_2","received_bytes":1024,"total_bytes":4096,"completed_files":0,"total_files":2}`；
@@ -274,7 +279,7 @@ playback_state仍反映真实playing/paused；无可见有效内容时才downloa
 无进度时省略download_progress，规范化事件不增加null字段，确保升级前event_id重试仍幂等。
 中心、中转持久保存并在状态API提供该字段；只表示传输进度，不代表播放成功。
 
-安卓本地按模块循环，底部上一项/暂停继续/下一项/重播；暂停手动翻页仍暂停、图停初始计时、视频停起点。
+安卓本地按模块循环，右侧上一项/暂停继续/下一项/重播；暂停手动翻页仍暂停、图停初始计时、视频停起点。
 图片缩放触发暂停，退出缩放仍暂停；新安排成功切换后恢复正常循环。恢复本地缓存先标“离线/待核对”，
 不宣称匹配最新安排。同revision同版本不重启当前项，同版本更高revision重新确认后应用。
 下载断点基于不可变sha命名.partial，使用Range/If-Range；200安全重写，206校验Content-Range，416安全核验或重下。
@@ -307,6 +312,8 @@ GET `/`为只读状态页外壳，账号登录后使用Cookie恢复状态；GET 
 "last_contact_at":null,"desired":null,"actual_version_id":null,"current_item_id":null,"playback_state":"idle",
 "pending_version_id":null,"report_seq":0,"reported_assignment_revision":0,"error":null,"sync_error":null}]}`。
 无心跳unknown，超过offline_seconds为offline；中心失联不伪造设备失联，使用本地原始心跳判定。
+local/status的downloads只列受保护版本仍需准备的文件及正在下载的文件；已清理且不再被引用的历史missing记录不作为待下载展示。
+missing为缓存尚未就绪的内部状态，页面显示“待下载”；历史身份映射仍保留，再次引用时可重新下载。
 事件先持久化再返回。中心确认accepted/duplicate/stale后标为已送达，保留去重事件；
 单事件永久错误单独隔离为blocked并显示，不阻塞其他屏幕；网络/5xx按退避重试。
 中转向中心下载采用单线程、流式、限时、有限次重试；局域网同时最多4条文件响应（MAX_LOCAL_DOWNLOADS可配），
