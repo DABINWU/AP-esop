@@ -17,3 +17,4 @@ Do not replace Excel rendering with extracted cell text or force all worksheets 
 An explicit screen_16_9 upload may fit each visible sheet onto one 1920x1080 playback image.
 Direct PDF uploads keep existing pages and bypass Office parsing; do not claim this fixes Excel shape conversion.
 Keep the API contract and validation evidence aligned with implementation.
+For each delivered center code/UI update, increment CENTER_VERSION in center/version.py before building/deploying; document the release in docs/VALIDATION.md. This system version is independent of uploaded content and playlist versions.

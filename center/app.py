@@ -11,7 +11,8 @@ from typing import Literal
 
 from fastapi import FastAPI, Depends, File, Form, UploadFile, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from .version import CENTER_VERSION
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -82,7 +83,7 @@ def create_app(settings=None):
         accounts.initialize()
         yield
 
-    app = FastAPI(title="工厂 ESOP 中心 V1", version="1.0.0", lifespan=lifespan,
+    app = FastAPI(title="工厂 ESOP 中心 V1", version=CENTER_VERSION, lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     app.state.db, app.state.settings = db, s
     app.state.accounts=accounts
@@ -439,7 +440,7 @@ def create_app(settings=None):
 
     @app.get("/")
     def index():
-        return FileResponse(static / "index.html", media_type="text/html")
+        return HTMLResponse((static / "index.html").read_text(encoding="utf-8").replace("__CENTER_VERSION__", CENTER_VERSION))
 
     app.mount("/static", StaticFiles(directory=static), name="static")
     app.mount('/auth-ui',StaticFiles(directory=Path(__file__).parents[1]/'shared'/'web'),name='auth-ui')

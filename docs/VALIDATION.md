@@ -516,6 +516,14 @@ HTML表头与JavaScript行渲染同步交换，不改数据、搜索、选择或
 Python133项通过：`test-output/pytest-offline-task-hint.xml`；中心/账号DOM检查通过，覆盖运行/超时等待提示及选择按钮可用。
 本机仅更新中心Web；不改中转、安卓、凭据、发布清单和目标安排。此轮没有新增实机或媒体转换验证。
 
+## 2026-11-09 中心系统v1.0.0版本标识
+
+左侧导航底部新增系统版本，唯一来源`center/version.py`，首页替换版本占位符，FastAPI版本元信息共用常量。
+从v1.0.0建立中心发布基线，后续程序/界面交付递增，规则已加入AGENTS与DEVELOPMENT；不影响资料/Android版本。
+中心DOM检查通过，Python133项通过（`test-output/pytest-system-version.xml`）。镜像构建并更新本机Web。
+HTTP确认首页含v1.0.0且没有未替换占位符；不改数据库、资料、派发、账号、中转或安卓。
+此轮未新增真实浏览器视觉或实机验收。
+
 ## 现场验收建议
 
 1. 在群晖按README部署，确认两个health状态、单Web worker、目录权限和日志轮转。

@@ -16,5 +16,6 @@ main{max-width:1760px}#workspace{display:grid;grid-template-columns:200px minmax
 .editor-actions{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:14px 0}.editor-actions-preview,.editor-actions-save{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.editor-actions-save{margin-left:auto;justify-content:flex-end}
 
 .table-pagination{justify-content:flex-end}.deploy-table{min-width:850px}.deploy-table th:first-child{width:65px}.deploy-table input[type=radio]{accent-color:#2857bd;width:18px;height:18px;cursor:pointer}.deploy-table .selected-row{background:#e9f0ff}#deploy-selected{font-weight:700;color:#2857bd}
+.sidebar-caption .system-version{display:block;margin-top:12px;font-size:16px;letter-spacing:1px;color:#fff;font-weight:700}
 
 .account-login{display:flex;flex-direction:column;gap:16px;max-width:460px}.account-login label{display:flex;flex-direction:column;gap:6px}.account-login input{width:100%}.account-login button{align-self:flex-start}#auth-message,#password-message{color:#a82c36;white-space:pre-wrap}#password-dialog{max-width:540px}
