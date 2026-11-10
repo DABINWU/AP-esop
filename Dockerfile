@@ -19,6 +19,8 @@ COPY shared ./shared
 COPY scripts ./scripts
 COPY tests ./tests
 COPY requirements-dev.txt .
+# Normalize source permissions: NAS checkout umask may otherwise copy owner-only files.
+RUN chmod -R a+rX /app
 USER 10001:10001
 EXPOSE 8080
 CMD ["uvicorn", "center.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8080", "--workers", "1", "--no-access-log"]

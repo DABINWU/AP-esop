@@ -1,5 +1,7 @@
 # Windows 车间中转
 
+现场首次部署可按[中心与Windows中转详细部署手册](../docs/DEPLOYMENT_GUIDE_ZH.md)逐步操作，包含中心部署、密钥配对、后台自启、现场验收及数据迁移。
+
 已实现 Python FastAPI + SQLite 中转，可用 Windows SCM 服务运行，无需登录、浏览器或命令窗口。
 只主动访问中心，经局域网服务屏幕；不创建总部任务，不转换Excel/PDF/视频，不实现VPN或安卓播放器。
 SOP/SIP/点检视频/自定义沿用中心schema2模块ID、顺序、1920×1080/contain规则；旧schema1兼容。
