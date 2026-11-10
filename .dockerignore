@@ -13,3 +13,4 @@ android/**/*.jks
 android/**/*.keystore
 android/dist
 android/signing
+relay/dist

@@ -1,5 +1,14 @@
 # V1 验证记录
 
+## Windows中转图形安装包1.0.0 / 2026-11-10
+
+交付relay/dist/AP-ESOP-Relay-1.0.0-Setup.exe，14,401,611字节，SHA256：7ce2dc92b42096017ca1676a532f22dbb36f38a8e4ab95d77e91d5b4abd83e3a。
+内置官方Python3.13.3 x64嵌入运行时、requirements对应依赖和官方WinSW2.12.0；无需目标电脑安装Python/Docker/Git。runtime与WinSW固定SHA校验，构建器签名检查通过。Inno Setup6.4.3编译，中文配置页、UAC管理员、独立ProgramData数据目录、Automatic延迟启动、失败10/30/60秒恢复。EXE未进行商业代码签名，Windows可能提示未知发布者。
+
+152项回归通过（test-output/relay-installer-tools/pytest.log），新增配置校验、随机独立密钥、升级保留调优字段/账号哈希、拒绝修改relay_id、XML路径转义测试。最终安装器真实Windows EXE/SCM联调通过（test-output/relay-installer-tools/validation-final.log）：独立临时服务、隔离Docker中心、实际安装/管理员登录、LocalSystem/Automatic、局域网单端口规则范围检查、中心派发与SHA下载、无鉴权401、断中心后EXE升级保留配置/缓存/outbox、恢复后原报告补传、EXE卸载移除服务/规则并保留数据。临时安装请求含秘密，受限保存后立即清除，不写命令行或日志。测试未操作原AP-ESOP-Relay服务及数据。
+
+构建/静默安装路径已验证；未声称已在正式工控机完成GUI人工验收、系统整机重启/VPN无人值守或安卓硬件联调。启动类型检查不等同实际断电开机测试。只读页面与共享API协议保持不变。
+
 验证日期：2026-11-06（用户时区 Asia/Shanghai）。仓库初始为空，没有覆盖已有实现。
 
 ## 已完成

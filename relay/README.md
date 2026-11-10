@@ -1,5 +1,7 @@
 # Windows 车间中转
 
+**推荐：直接使用[Windows图形安装包说明](installer/README.md)**，运行`relay/dist/AP-ESOP-Relay-1.0.0-Setup.exe`即可安装内置运行环境、开机后台服务及受限局域网防火墙规则；无需另装Python/Docker/Git。以下为手动部署与维护方式。
+
 现场首次部署可按[中心与Windows中转详细部署手册](../docs/DEPLOYMENT_GUIDE_ZH.md)逐步操作，包含中心部署、密钥配对、后台自启、现场验收及数据迁移。
 
 已实现 Python FastAPI + SQLite 中转，可用 Windows SCM 服务运行，无需登录、浏览器或命令窗口。
