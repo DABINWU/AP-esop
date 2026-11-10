@@ -238,8 +238,9 @@ $('deploy').onclick = safe(async () => { const device_ids=[...document.querySele
 $('retry-deploy').onclick = safe(sendDeployment);
 function renderTasks(tasks) {
   deploymentTasks=tasks;renderDeploymentProgress();
-  $('task-list').replaceChildren(); if (!tasks.length) $('task-list').append(node('p','暂无执行记录。'));
-  for (const task of tasks) { const n = node('div',undefined,'task'); n.append(node('strong',`${labels[task.status]} · ${versionLabel(task.playlist_version_id)}`),node('small',` · ${task.created_at} · ${task.targets.length}台`)); const details=node('details'); details.append(node('summary',task.id)); details.append(node('p',`截止 ${task.expires_at}；结束 ${task.finished_at || '—'}`)); for(const t of task.targets) details.append(node('p',`${t.device_id} · revision ${t.assignment_revision} · ${labels[t.status] || t.status}${t.error?' · '+t.error:''}`)); n.append(details); $('task-list').append(n); }
+  const recentTasks=[...tasks].sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,10);
+  $('task-list').replaceChildren(node('p','仅显示最近 10 条下发记录。')); if (!tasks.length) $('task-list').append(node('p','暂无执行记录。'));
+  for (const task of recentTasks) { const n = node('div',undefined,'task'); n.append(node('strong',`${labels[task.status]} · ${versionLabel(task.playlist_version_id)}`),node('small',` · ${task.created_at} · ${task.targets.length}台`)); const details=node('details'); details.append(node('summary',task.id)); details.append(node('p',`截止 ${task.expires_at}；结束 ${task.finished_at || '—'}`)); for(const t of task.targets) details.append(node('p',`${t.device_id} · revision ${t.assignment_revision} · ${labels[t.status] || t.status}${t.error?' · '+t.error:''}`)); n.append(details); $('task-list').append(n); }
 }
 function renderDeploymentProgress(){
   const running=deploymentTasks.find(task=>task.status==='running');
