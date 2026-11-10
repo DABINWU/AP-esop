@@ -53,7 +53,7 @@ class PlayerIntegrationTest {
                 assertEquals(0,media.top);assertEquals(root.height,media.height)
                 assertEquals(media.right,rail.left);assertTrue(media.width>rail.width)
                 val railBounds=android.graphics.Rect();rail.getGlobalVisibleRect(railBounds)
-                for(tag in listOf("title","status","item-label","previous","next","pause","replay","zoom-exit","module-production","module-inspection","module-check_video","module-custom")) {
+                for(tag in listOf("title","status","item-label","previous","next","pause","replay","zoom-exit","audio-toggle","module-production","module-inspection","module-check_video","module-custom")) {
                     val view=activity.window.decorView.findViewWithTag<android.view.View>(tag)
                     if(view.visibility==android.view.View.GONE)continue
                     val position=IntArray(2);view.getLocationOnScreen(position)
@@ -86,7 +86,15 @@ class PlayerIntegrationTest {
             click("module-production");click("pause")
             waitFor(30000){value("item-label").contains("7 / 7")}
             waitFor(10000){var position=0L;scenario.onActivity{position=it.videoPosition()};position>250}
+            fun volume():Float {val result=AtomicReference(0f);scenario.onActivity {activity ->
+                val field=MainActivity::class.java.getDeclaredField("player").apply {isAccessible=true}
+                result.set((field.get(activity) as androidx.media3.common.Player).volume)
+            };return result.get()}
+            assertEquals("开启声音",value("audio-toggle"));assertEquals(0f,volume(),0f)
+            val pauseLabel=value("pause");click("audio-toggle")
+            assertEquals("静音",value("audio-toggle"));assertEquals(1f,volume(),0f);assertEquals(pauseLabel,value("pause"))
             waitFor(10000){value("item-label").contains("1 / 7")}
+            assertEquals("静音",value("audio-toggle"));click("audio-toggle");assertEquals(0f,volume(),0f)
             click("pause");assertEquals("继续",value("pause"))
             File(app.filesDir,"validation.phase").writeText("paused_heartbeat")
             Thread.sleep(12000);assertEquals("继续",value("pause"))

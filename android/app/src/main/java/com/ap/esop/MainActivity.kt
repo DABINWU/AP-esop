@@ -46,6 +46,8 @@ class MainActivity:ComponentActivity(),PlayerScreen {
     private var communicationState=""
     private lateinit var overlay:TextView
     private lateinit var pauseButton:Button
+    private lateinit var muteButton:Button
+    private var muted=true
     private val modules=linkedMapOf("production" to "SOP", "inspection" to "SIP", "check_video" to "点检视频", "custom" to "自定义")
     private val moduleButtons=mutableMapOf<String,Button>()
     private var uiScope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
@@ -108,7 +110,13 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         pauseButton=button("暂停"){engine?.togglePause()};pauseButton.tag="pause"
         row(button("上一项"){engine?.move(-1)}.apply {tag="previous"},button("下一项"){engine?.move(1)}.apply {tag="next"})
         row(pauseButton,button("重播当前项"){engine?.replay()}.apply {tag="replay"})
-        row(button("退出放大"){image.resetZoom()}.apply {tag="zoom-exit"})
+        muteButton=button("开启声音"){
+            muted=!muted
+            player?.volume=if(muted)0f else 1f
+            updateMuteButton()
+        }.apply {tag="audio-toggle"}
+        updateMuteButton()
+        row(button("退出放大"){image.resetZoom()}.apply {tag="zoom-exit"},muteButton)
         rail.addView(View(this),LinearLayout.LayoutParams(1,0,1f))
         rail.addView(button("管理员"){admin()},LinearLayout.LayoutParams(-1,dp(52)))
         val railWidth=dp((resources.configuration.screenWidthDp*.22f).toInt().coerceIn(176,280))
@@ -137,6 +145,8 @@ class MainActivity:ComponentActivity(),PlayerScreen {
     private fun ensurePlayer():ExoPlayer {
         player?.let {return it}
         return ExoPlayer.Builder(this).build().also { value ->
+            // Apply before media preparation so the first audio frame is silent by default.
+            value.volume=if(muted)0f else 1f
             player=value;playerView.player=value
             value.addListener(object:Player.Listener {
                 override fun onPlaybackStateChanged(playbackState:Int){if(playbackState==Player.STATE_ENDED && value.playbackState==Player.STATE_ENDED)ended?.invoke()}
@@ -147,6 +157,10 @@ class MainActivity:ComponentActivity(),PlayerScreen {
                 override fun onPlayerError(eventTime:AnalyticsListener.EventTime,error:PlaybackException){if(matches(eventTime))failed?.invoke("视频无法播放（${error.errorCodeName}）")}
             })
         }
+    }
+    private fun updateMuteButton() {
+        muteButton.text=if(muted)"开启声音" else "静音"
+        muteButton.contentDescription=if(muted)"当前已静音，点击开启声音" else "当前声音已开启，点击静音"
     }
     override fun render(item:PlayItem,file:File,paused:Boolean,position:Long,ready:()->Unit,ended:()->Unit,failed:(String)->Unit) {
         renderGeneration++;val generation=renderGeneration;decodeJob?.cancel()

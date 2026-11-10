@@ -1,5 +1,13 @@
 # V1 验证记录
 
+## Android1.0.5 默认静音 / 2026-11-10
+
+最新版右侧圆角操作区新增audio-toggle，初始“开启声音”，点击后为“静音”。创建Media3播放器时先设volume=0再准备媒体，开启为1；仅修改App播放器，不修改系统音量、暂停/位置/目标安排或报告协议。当前Activity会话内跨图片/视频/模块/资料和播放器重建保持选择，新Activity/进程恢复默认静音。右侧旧版已隐藏信息不恢复。
+
+正式versionCode6，APK为android/dist/AP-ESOP-Player-1.0.5-release.apk，5,110,026字节，SHA256 fae9c44eb8797a493bf55a747b6d01f7f41c795c797fb6a5833723e9634ab88f。apksigner校验通过，证书SHA256仍为59f6df3cf95e351abb5246158b6c0cc7773513b8ac9903d45dfeaccfa3d346a4，可覆盖既有正式版保留配置。
+
+Gradle Wrapper assembleRelease、assembleDebugAndroidTest、testDebugUnitTest、lintRelease构建成功（test-output/android-tools/build-player-mute.log）；18项JVM测试通过，lint零错误/13个已有警告；Python152项回归通过（pytest-player-mute.log）。扩展设备集成测试覆盖默认视频音量0、切换为1不改变暂停、视频结束后保持声音选择和重新静音，并已编译，**本次没有运行设备测试或启动模拟器**。实机音频首帧、连续切换和系统媒体音量仍需安装后验收，不能把构建结果当成听音验证。
+
 ## Windows中转图形安装包1.0.0 / 2026-11-10
 
 交付relay/dist/AP-ESOP-Relay-1.0.0-Setup.exe，14,401,611字节，SHA256：7ce2dc92b42096017ca1676a532f22dbb36f38a8e4ab95d77e91d5b4abd83e3a。
