@@ -172,6 +172,7 @@ function renderEditor() {
   $('upload-form').hidden = !draft; $('save-version').hidden = !draft; $('publish-version').hidden = !draft;
   $('publish-version').disabled = !previewed || dirty || !items.length;
   $('edit-library').hidden=draft;
+  $('editor-hint').hidden = !dirty;
   $('editor-hint').textContent = draft ? (dirty ? '有未保存排序或秒数改动。' : '请预览所有有内容的模块后发布；转换中或失败文件会阻止发布。') : '资料已发布。需要继续维护时，请点击“编辑资料”。';
   $('module-tabs').replaceChildren();
   for(const [category,label] of Object.entries(modules)){const count=items.filter(i=>categoryOf(i)===category).length;const tab=button(`${label} (${count})`,()=>{activeModule=category;$('upload-file').value='';renderEditor();renderAssets();});tab.setAttribute('aria-pressed',String(activeModule===category));if(activeModule===category)tab.className='selected';$('module-tabs').append(tab);}
@@ -214,6 +215,10 @@ $('publish-version').onclick = safe(async () => { if (!previewed || dirty) throw
 
 $('device-form').onsubmit = safe(async e => { e.preventDefault(); await json('/devices',{method:'POST',body:{device_id:$('device-id').value,name:$('device-name').value}}); $('device-id').value=''; $('device-name').value=''; await refreshStatus(); });
 function renderDevices(data) {
+  let management=$('device-management');
+  if(!management){management=node('details');management.id='device-management';management.append(node('summary','删除屏幕（展开管理）'),node('p','删除后取消目标安排并保留历史；不会清空终端缓存。已删除编号不可重复登记。'));const list=node('div');list.id='device-delete-list';management.append(list);$('stats').before(management);}
+  $('device-delete-list').replaceChildren();
+  for(const d of data.devices){const row=node('div',undefined,'row');row.append(node('span',d.name+' · '+d.device_id));const remove=button('删除屏幕',async()=>{if(!confirm(`确认删除屏幕“${d.name}”（${d.device_id}）？\n目标安排将取消，历史保留。离线终端仍可播放缓存；重新使用需登记新编号。`))return;await json('/devices/'+encodeURIComponent(d.device_id),{method:'DELETE'});await refreshStatus();notice('屏幕已删除，历史记录保留；中转下次同步后停止接受该屏幕连接。');});remove.className='danger';row.append(remove);$('device-delete-list').append(row);}
   const selected = new Set([...document.querySelectorAll('.device-check:checked')].map(n => n.value)); $('stats').replaceChildren();
   for (const [field,label] of [['registered','登记屏幕'],['online','在线'],['offline','离线'],['unknown','未知'],['pending','待同步']]) { const n = node('div',label,'stat'); n.append(node('strong',data.summary[field])); $('stats').append(n); }
   $('relay-state').textContent = (data.relay.state==='online'?'中转通信正常':'中转失联 / 未连接，车间状态未知') + ' · 最后更新（UTC）：' + (data.relay.last_seen_at || '尚无记录');
@@ -245,6 +250,7 @@ function renderTasks(tasks) {
 function renderDeploymentProgress(){
   const running=deploymentTasks.find(task=>task.status==='running');
   const hint=$('deployment-progress');
+  hint.hidden=!running;
   if(!running){hint.textContent='当前无执行中的下发任务，可选择资料和屏幕下发；离线屏幕的待同步安排不会阻塞新任务。';return;}
   const remaining=Math.max(0,Math.ceil((Date.parse(running.expires_at)-Date.now())/1000));
   hint.textContent=`当前下发正在等待 ${running.targets.length} 台屏幕确认，截止 ${new Date(running.expires_at).toLocaleString()}。`+(remaining>0?`约 ${remaining} 秒后超时释放，届时可重新下发。`:'已到截止时间，正在刷新任务状态。')+' 离线屏幕无需上线才释放；目标安排会继续保留。';

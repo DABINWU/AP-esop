@@ -13,8 +13,8 @@ def plan(c, playlist_id, incoming=None):
     old=[r['id'] for r in published if r['id']!=primary]
     pins={};task_ids=[];device_ids=[]
     for vid in old:
-        devices=[dict(r) for r in c.execute('''SELECT device_id,name FROM devices WHERE actual_version_id=? OR pending_version_id=?
-            OR device_id IN (SELECT device_id FROM assignments WHERE playlist_version_id=?)''',(vid,vid,vid))]
+        devices=[dict(r) for r in c.execute('''SELECT device_id,name FROM devices WHERE device_id NOT IN (SELECT device_id FROM deleted_devices) AND (actual_version_id=? OR pending_version_id=?
+            OR device_id IN (SELECT device_id FROM assignments WHERE playlist_version_id=?))''',(vid,vid,vid))]
         tasks=[r[0] for r in c.execute("SELECT id FROM tasks WHERE playlist_version_id=? AND status='running' AND expires_at>?",(vid,now()))]
         if devices or tasks:
             pins[vid]=dict(devices=devices,task_ids=tasks)

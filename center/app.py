@@ -394,6 +394,17 @@ def create_app(settings=None):
     def devices():
         return device_status(db)
 
+    @app.delete("/api/v1/devices/{device_id}", dependencies=[Depends(admin)])
+    def delete_device(device_id: str):
+        with db.write() as c:
+            require_row(c, "devices", "device_id", device_id)
+            expire_tasks(c)
+            if c.execute("SELECT 1 FROM task_targets tt JOIN tasks t ON t.id=tt.task_id WHERE tt.device_id=? AND t.status='running'", (device_id,)).fetchone():
+                raise MediaError("屏幕有执行中的下发任务，请等待完成或超时后删除", 409, "device_busy")
+            c.execute("INSERT OR IGNORE INTO deleted_devices VALUES(?,?)", (device_id, now()))
+            c.execute("DELETE FROM assignments WHERE device_id=?", (device_id,))
+            return dict(device_id=device_id, deleted=True, retained_history=True)
+
     @app.post("/api/v1/deployments", dependencies=[Depends(admin)])
     def deploy(body: DeploymentCreate):
         return create_deployment(db, body)
@@ -410,7 +421,7 @@ def create_app(settings=None):
             touch_relay(c, s, body.relay_id)
             expire_tasks(c)
             assignments = [dict(a) for a in c.execute("SELECT * FROM assignments ORDER BY device_id")]
-            devices = [dict(d) for d in c.execute('SELECT * FROM devices ORDER BY device_id')]
+            devices = [dict(d) for d in c.execute('SELECT * FROM devices WHERE device_id NOT IN (SELECT device_id FROM deleted_devices) ORDER BY device_id')]
             from .service import device_progress
             for device in devices:
                 device['download_progress']=device_progress(c,device['device_id'],device['report_seq'])
@@ -432,6 +443,7 @@ def create_app(settings=None):
                 t.playlist_version_id,t.id AS task_id,t.created_at AS assigned_at,s.received_at AS relay_acked_at
                 FROM task_targets tt JOIN tasks t ON t.id=tt.task_id LEFT JOIN sync_receipts s
                 ON s.device_id=tt.device_id AND s.assignment_revision=tt.assignment_revision
+                WHERE tt.device_id NOT IN (SELECT device_id FROM deleted_devices)
                 ORDER BY tt.assignment_revision''')]
             return dict(server_time=now(), heartbeat_seconds=s.heartbeat_seconds, offline_seconds=s.offline_seconds,
                         assignments=assignments, versions=versions, tasks=tasks, devices=devices, assignment_history=history)
@@ -442,6 +454,8 @@ def create_app(settings=None):
             touch_relay(c, s, body.relay_id)
             accepted = 0
             for a in body.assignments:
+                if c.execute('SELECT 1 FROM deleted_devices WHERE device_id=?',(a.device_id,)).fetchone():
+                    continue
                 current = require_row(c, "assignments", "device_id", a.device_id)
                 if a.assignment_revision > current["assignment_revision"]:
                     raise MediaError("不能确认未来安排", 409)

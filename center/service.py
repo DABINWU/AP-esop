@@ -118,6 +118,8 @@ def create_deployment(db, body):
             raise MediaError("只能下发已发布版本", 409)
         for device_id in body.device_ids:
             require_row(c, "devices", "device_id", device_id)
+            if c.execute('SELECT 1 FROM deleted_devices WHERE device_id=?',(device_id,)).fetchone():
+                raise MediaError("屏幕已删除，请登记新的 device_id", 404, "device_deleted")
         task_id, created = uid("task"), now()
         c.execute("INSERT INTO tasks VALUES(?,?,?,?,?,?,?,NULL)",
                   (task_id, body.request_id, fingerprint, version["id"], "running", created, after(body.timeout_seconds)))
@@ -149,7 +151,7 @@ def device_status(db):
         relay_online = bool(relay_seen and age_seconds(relay_seen) < db.settings.offline_seconds)
         summary = dict(registered=0, online=0, offline=0, unknown=0, pending=0)
         devices = []
-        for row in c.execute("SELECT * FROM devices ORDER BY device_id"):
+        for row in c.execute("SELECT * FROM devices WHERE device_id NOT IN (SELECT device_id FROM deleted_devices) ORDER BY device_id"):
             device = dict(row)
             device['download_progress']=device_progress(c,row['device_id'],row['report_seq'])
             assignment = c.execute("SELECT * FROM assignments WHERE device_id=?", (row["device_id"],)).fetchone()
@@ -180,6 +182,9 @@ def accept_reports(db, body):
                 results.append(dict(event_id=report.event_id, status="duplicate"))
                 continue
             device = require_row(c, "devices", "device_id", report.device_id)
+            if c.execute('SELECT 1 FROM deleted_devices WHERE device_id=?',(report.device_id,)).fetchone():
+                results.append(dict(event_id=report.event_id, status="stale"))
+                continue
             if report.report_seq <= device["report_seq"]:
                 outcome = "stale"
             else:

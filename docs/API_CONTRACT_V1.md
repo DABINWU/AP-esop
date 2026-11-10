@@ -346,5 +346,14 @@ GET /api/v1/retention返回各资料保留计划；POST同路径接受`{"dry_run
 
 ## 兼容性及未来
 
+### 屏幕删除
+
+管理员 `DELETE /api/v1/devices/{device_id}`，成功200：`{"device_id":"screen-01","deleted":true,"retained_history":true}`。
+401未鉴权，404编号不存在，409/device_busy表示该屏幕仍有执行中的任务，等待完成/超时后重试。
+删除为持久化注销，重复删除幂等；取消目标安排，从登记统计和中转全量快照 devices/assignments/assignment_history 中移除。
+历史任务、事件、编号与revision保留，已删除编号不可重新登记。迟到报告按stale确认但不更新实际状态；迟到ack忽略。
+中转现有全量同步将缺席设备 registered=0，后续终端查询/报告404；中心断线期间注销尚不能传达。
+不会远程清空终端缓存或强制终止离线播放，重新启用需新编号。网页入口默认折叠，删除前确认。
+
 V1 中心是唯一任务创建方。后续 PDA 需要由中转统一仲裁、统一任务锁和离线冲突解决，
 不能简单增加第二个中心任务入口。PDA、取消抢占、Office在线编辑、审批、多车间、MES均未实现。

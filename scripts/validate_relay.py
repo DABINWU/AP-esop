@@ -260,6 +260,15 @@ def main():
                 assert browser.get('/api/v1/auth/session').status_code==401
                 browser.close()
             record('real center/relay accounts: password login, refresh, process restart keeps session, password change revokes old cookies, logout')
+            post('devices',{'device_id':'delete-check','name':'delete-check'})
+            wait(lambda:local.post('/api/v1/device/sync',json={'device_id':'delete-check','known_assignment_revision':0}).status_code==200)
+            removed=center.delete('/api/v1/devices/delete-check');removed.raise_for_status()
+            assert removed.json()['retained_history']
+            wait(lambda:local.post('/api/v1/device/sync',json={'device_id':'delete-check','known_assignment_revision':0}).status_code==404)
+            kill();start()
+            assert local.post('/api/v1/device/sync',json={'device_id':'delete-check','known_assignment_revision':0}).status_code==404
+            assert center.post('/api/v1/devices',json={'device_id':'delete-check','name':'reuse'}).status_code==409
+            record('deleted screen disappears from center and relay; terminal rejected after sync and relay restart; ID cannot be reused')
             status=local.get('/api/v1/local/status',headers={'Authorization':'Bearer '+local_key}).json()
             (run/'status.json').write_text(json.dumps(status,ensure_ascii=False,indent=2),encoding='utf-8')
             result=dict(kind='real Docker center -> Windows relay over loopback HTTP; terminal requests simulated, no Android hardware',

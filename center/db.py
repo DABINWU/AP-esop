@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS sync_receipts(
  device_id TEXT NOT NULL, assignment_revision INTEGER NOT NULL, received_at TEXT NOT NULL,
  PRIMARY KEY(device_id,assignment_revision));
 CREATE INDEX IF NOT EXISTS events_device_seq ON events(device_id,report_seq);
+CREATE TABLE IF NOT EXISTS deleted_devices(device_id TEXT PRIMARY KEY REFERENCES devices(device_id), deleted_at TEXT NOT NULL);
 """
 
 
