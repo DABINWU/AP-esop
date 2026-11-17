@@ -126,7 +126,7 @@ function renderAssets() {
     if (original && a.status!=='deleting') actions.append(button('下载原件', async () => { const response = await api('/files/' + original.id); const url = URL.createObjectURL(await response.blob()); const link = node('a'); link.href = url; link.download = a.original_name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 2000); }));
     actions.append(button('查看引用',async()=>{const usage=await json('/assets/'+a.id+'/usage');notice(usage.can_delete?'此资料没有保存的播放列表引用，可以删除。':usage.blockers.join('\n'));}));
     const remove=button(a.status==='deleting'?'重试删除':'删除',()=>removeAsset(a));remove.className='danger';actions.append(remove);
-    tr.append(name,kind,state,info,node('td',new Date(a.created_at).toLocaleString('zh-CN',{hour12:false})),notes,actions);$('asset-list').append(tr);
+    tr.append(name,kind,state,info,node('td',beijingTime(a.created_at)),notes,actions);$('asset-list').append(tr);
   }
 }
 function formatBytes(value){if(value<1024)return value+' B';if(value<1048576)return (value/1024).toFixed(1)+' KB';return (value/1048576).toFixed(1)+' MB';}
@@ -214,6 +214,11 @@ $('preview-version').onclick = safe(async () => { if (!current || !items.some(i=
 $('publish-version').onclick = safe(async () => { if (!previewed || dirty) throw new Error('请先保存并预览'); const v = await json('/versions/'+current.id+'/publish',{method:'POST'}); versions = versions.map(old => old.id===v.id?v:old); chooseVersion(v); renderVersionSelectors();renderPlaylists();notice('资料已发布，可在屏幕与下发中选择。'); });
 
 $('device-form').onsubmit = safe(async e => { e.preventDefault(); await json('/devices',{method:'POST',body:{device_id:$('device-id').value,name:$('device-name').value}}); $('device-id').value=''; $('device-name').value=''; await refreshStatus(); });
+function beijingTime(value, fallback='—') {
+  if(!value)return fallback;
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?fallback:date.toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});
+}
 function renderDevices(data) {
   let management=$('device-management');
   if(!management){management=node('details');management.id='device-management';management.append(node('summary','删除屏幕（展开管理）'),node('p','删除后取消目标安排并保留历史；不会清空终端缓存。已删除编号不可重复登记。'));const list=node('div');list.id='device-delete-list';management.append(list);$('stats').before(management);}
@@ -221,7 +226,7 @@ function renderDevices(data) {
   for(const d of data.devices){const row=node('div',undefined,'row');row.append(node('span',d.name+' · '+d.device_id));const remove=button('删除屏幕',async()=>{if(!confirm(`确认删除屏幕“${d.name}”（${d.device_id}）？\n目标安排将取消，历史保留。离线终端仍可播放缓存；重新使用需登记新编号。`))return;await json('/devices/'+encodeURIComponent(d.device_id),{method:'DELETE'});await refreshStatus();notice('屏幕已删除，历史记录保留；中转下次同步后停止接受该屏幕连接。');});remove.className='danger';row.append(remove);$('device-delete-list').append(row);}
   const selected = new Set([...document.querySelectorAll('.device-check:checked')].map(n => n.value)); $('stats').replaceChildren();
   for (const [field,label] of [['registered','登记屏幕'],['online','在线'],['offline','离线'],['unknown','未知'],['pending','待同步']]) { const n = node('div',label,'stat'); n.append(node('strong',data.summary[field])); $('stats').append(n); }
-  $('relay-state').textContent = (data.relay.state==='online'?'中转通信正常':'中转失联 / 未连接，车间状态未知') + ' · 最后更新（UTC）：' + (data.relay.last_seen_at || '尚无记录');
+  $('relay-state').textContent = (data.relay.state==='online'?'中转通信正常':'中转失联 / 未连接，车间状态未知') + ' · 最后更新（北京时间）：' + beijingTime(data.relay.last_seen_at,'尚无记录');
   $('device-list').replaceChildren();
   for (const d of data.devices) {
     const tr = node('tr'), first = node('td'), check = node('input'); check.type='checkbox'; check.className='device-check'; check.value=d.device_id; check.checked=selected.has(d.device_id); first.append(check,node('span',' '+d.name),node('small',d.device_id)); tr.append(first);
@@ -231,7 +236,7 @@ function renderDevices(data) {
     const desired = node('td',versionLabel(d.desired?.playlist_version_id)); desired.append(node('small',d.desired?'revision '+d.desired.assignment_revision:'未安排')); tr.append(desired);
     const actual = node('td',versionLabel(d.actual_version_id)); actual.append(node('small',d.current_item_id || '无当前项')); tr.append(actual);
     const state = node('td',labels[d.playback_state] || d.playback_state); state.append(node('small','待更新：'+versionLabel(d.pending_version_id)));if(d.download_progress){const p=d.download_progress;state.append(node('small',`终端下载 ${p.completed_files}/${p.total_files} · ${Math.round(p.received_bytes*100/Math.max(1,p.total_bytes))}%`));} tr.append(state);
-    const last = node('td',d.last_contact_at || '未联系'); if (d.error) last.append(node('small',d.error,'failure')); tr.append(last); $('device-list').append(tr);
+    const last = node('td',beijingTime(d.last_contact_at,'未联系')); if (d.error) last.append(node('small',d.error,'failure')); tr.append(last); $('device-list').append(tr);
   }
 }
 $('select-all').onchange = () => document.querySelectorAll('.device-check').forEach(n => n.checked=$('select-all').checked);
@@ -245,7 +250,7 @@ function renderTasks(tasks) {
   deploymentTasks=tasks;renderDeploymentProgress();
   const recentTasks=[...tasks].sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,10);
   $('task-list').replaceChildren(node('p','仅显示最近 10 条下发记录。')); if (!tasks.length) $('task-list').append(node('p','暂无执行记录。'));
-  for (const task of recentTasks) { const n = node('div',undefined,'task'); n.append(node('strong',`${labels[task.status]} · ${versionLabel(task.playlist_version_id)}`),node('small',` · ${task.created_at} · ${task.targets.length}台`)); const details=node('details'); details.append(node('summary',task.id)); details.append(node('p',`截止 ${task.expires_at}；结束 ${task.finished_at || '—'}`)); for(const t of task.targets) details.append(node('p',`${t.device_id} · revision ${t.assignment_revision} · ${labels[t.status] || t.status}${t.error?' · '+t.error:''}`)); n.append(details); $('task-list').append(n); }
+  for (const task of recentTasks) { const n = node('div',undefined,'task'); n.append(node('strong',`${labels[task.status]} · ${versionLabel(task.playlist_version_id)}`),node('small',` · ${beijingTime(task.created_at)} · ${task.targets.length}台`)); const details=node('details'); details.append(node('summary',task.id)); details.append(node('p',`截止 ${beijingTime(task.expires_at)}；结束 ${task.finished_at || '—'}`)); for(const t of task.targets) details.append(node('p',`${t.device_id} · revision ${t.assignment_revision} · ${labels[t.status] || t.status}${t.error?' · '+t.error:''}`)); n.append(details); $('task-list').append(n); }
 }
 function renderDeploymentProgress(){
   const running=deploymentTasks.find(task=>task.status==='running');
@@ -253,7 +258,7 @@ function renderDeploymentProgress(){
   hint.hidden=!running;
   if(!running){hint.textContent='当前无执行中的下发任务，可选择资料和屏幕下发；离线屏幕的待同步安排不会阻塞新任务。';return;}
   const remaining=Math.max(0,Math.ceil((Date.parse(running.expires_at)-Date.now())/1000));
-  hint.textContent=`当前下发正在等待 ${running.targets.length} 台屏幕确认，截止 ${new Date(running.expires_at).toLocaleString()}。`+(remaining>0?`约 ${remaining} 秒后超时释放，届时可重新下发。`:'已到截止时间，正在刷新任务状态。')+' 离线屏幕无需上线才释放；目标安排会继续保留。';
+  hint.textContent=`当前下发正在等待 ${running.targets.length} 台屏幕确认，截止 ${beijingTime(running.expires_at)}。`+(remaining>0?`约 ${remaining} 秒后超时释放，届时可重新下发。`:'已到截止时间，正在刷新任务状态。')+' 离线屏幕无需上线才释放；目标安排会继续保留。';
 }
 
 function closePreview() { previewGeneration++; clearTimeout(playbackTimer); const video=$('preview-body').querySelector('video'); if(video) video.pause(); $('preview-dialog').close(); $('preview-body').classList.remove('screen-playback');$('preview-body').replaceChildren(); for(const url of previewUrls) URL.revokeObjectURL(url); previewUrls=[]; playingItems=[]; }
