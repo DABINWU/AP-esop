@@ -1,5 +1,13 @@
 # V1 验证记录
 
+## 中心v1.1.9 及中转网页图标 / 2026-11-20
+
+用户提供favicon.ico原样放入中心和中转static目录，登录/管理页及操作说明页显式引用同源ICO；资料库、屏幕下发、历史共用中心页面，均显示图标。离线说明使用docs相对图标。未改鉴权或同步协议。回归见test-output/pytest-favicon.log。中心需重建，中转已安装版本需更新程序资源后显示，旧安装包不会自动改变。
+
+## 中心v1.1.8 / 2026-11-20
+
+现场操作说明页面无样式：中心CSP style-src self禁止内联style。将发布页CSS拆到同源/static/user-guide.css，不放宽CSP；恢复蓝色标题、表格边框、提示框、居中页面和打印分页。docs独立HTML仍保留内联样式供离线阅读。回归见test-output/pytest-guide-css.log，现场须重新构建后验证。
+
 ## 中心v1.1.7 / 2026-11-20
 
 侧栏底部ESOP CENTER上方增加操作说明链接，在新标签页打开随镜像发布的/static/user-guide.html，支持浏览器打印。内容与docs/ESOP办公室操作说明.html一致，无密码或密钥。无需访问外网，不改变下发协议。回归见test-output/pytest-guide-button.log。群晖需更新源代码并构建后生效。
