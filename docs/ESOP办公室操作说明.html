@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><title>ESOP办公室操作说明</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#24324a;font:15px/1.8 "Microsoft YaHei",sans-serif}.page{background:white;max-width:850px;margin:24px auto;padding:36px 48px}h1{font-size:27px;color:#14224d;margin:0 0 8px}h2{font-size:19px;color:#2857bd;margin:23px 0 8px}h3{font-size:16px;margin:15px 0 5px}p{margin:7px 0}ol,ul{padding-left:24px;margin:8px 0}li{margin:5px 0}table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}td,th{padding:8px 12px;border:1px solid #d9e2f0;text-align:left}th{background:#edf3ff}.flow{background:#edf3ff;border-left:4px solid #2857bd;padding:12px 16px;font-weight:bold}.note{background:#fff7e5;padding:10px 14px}.meta{color:#64748b;font-size:13px}.foot{border-top:1px solid #d9e2f0;margin-top:25px;padding-top:10px;font-size:12px;color:#64748b}@page{size:A4;margin:15mm}@media print{body{background:white;font-size:11pt}.page{margin:0;padding:0;max-width:none;break-after:page}.page:last-child{break-after:auto}h2,h3{break-after:avoid}tr,.note,.flow{break-inside:avoid}.meta{font-size:9pt}}
+</style>
+<main>
+<section class="page">
+<h1>ESOP办公室操作说明</h1>
+<p class="meta">适用人员 办公室资料维护与下发人员　｜　编写日期 2026年11月20日</p>
+<p>本说明用于日常录入指导书、发布资料并下发到车间屏幕。电脑浏览器操作即可，无需了解服务器和通信密钥。首次使用前，请管理员确认中心、中转和屏幕已配置好。</p>
+<h2>一 先了解三个页面</h2>
+<table><tr><th>左侧菜单</th><th>主要用途</th></tr><tr><td>工艺资料库</td><td>按产品或工序存放资料，上传、排序、预览和发布。</td></tr><tr><td>屏幕与下发</td><td>选择已发布资料和接收屏幕，查看同步及播放状态。</td></tr><tr><td>下发历史</td><td>查看最近10次下发记录、执行结果和关联屏幕。</td></tr></table>
+<div class="flow">日常顺序：录入资料 → 保存 → 预览 → 发布 → 选择屏幕下发 → 确认实际播放</div>
+<p class="note"><b>发布和下发是两步。</b>“发布”是把资料确认好、准备供使用；“下发”才是安排指定屏幕播放。只点发布，不会自动更新现场屏幕。</p>
+<h2>二 登录系统</h2>
+<ol><li>浏览器打开中心地址：<b>http://192.168.0.186:18080</b>。地址变更时以管理员通知为准。</li><li>输入管理员分配的账号和密码。日常登录不需要填写密钥。</li><li>登录默认有效12小时，到期重新登录即可，不影响屏幕继续播放。</li></ol>
+<h2>三 新建一份资料</h2>
+<ol><li>进入<b>工艺资料库</b>。</li><li>填写“资料名称”，建议用“产品名称＋工序”，例如“端盖组件装配”。说明可选填。</li><li>点击<b>创建资料条目</b>，资料编号自动生成。</li><li>已有资料可按名称或编号搜索，再点击<b>进入资料</b>。</li></ol>
+<p>一份资料可以长期维护、反复调用，不需要每次下发都重新创建。</p>
+<div class="foot">第1页　认识系统与新建资料</div>
+</section>
+<section class="page">
+<h1>上传并发布资料</h1>
+<h2>四 按分类上传文件</h2>
+<table><tr><th>分类</th><th>放什么内容</th></tr><tr><td>SOP 生产作业指导书</td><td>装配、加工等生产操作指导。</td></tr><tr><td>SIP 检验作业指导书</td><td>检验方法、标准及注意事项。</td></tr><tr><td>点检视频</td><td>设备点检或操作演示视频。</td></tr><tr><td>自定义</td><td>其他需要现场查看的资料。</td></tr></table>
+<ol><li>选择对应分类，点击<b>选择文件</b>。</li><li>图片默认停留20秒，可按阅读需要调整；点击<b>上传到当前模块</b>。</li><li>Excel和PDF需要转换。等待状态显示<b>可用</b>，检查错误或提示；转换成功后分页自动加入播放顺序。</li></ol>
+<p>可上传Excel、PDF、PNG/JPG图片及MP4视频。默认文档/图片不超过100MB，视频不超过200MB、180秒；实际限制以页面为准。不兼容视频请先请相关人员处理后再上传。</p>
+<p class="note">Excel/WPS出现图片缺失或图形错位时，先在原软件检查并导出PDF，再上传。内容按16:9完整显示，可能留白；长表缩小后文字可能过小，必须检查预览。</p>
+<h2>五 按按钮顺序完成发布</h2>
+<div class="flow">保存排序与秒数 → 预览当前模块 → 发布资料</div>
+<ol><li><b>调整并保存：</b>用↑↓调整播放顺序，修改每张图片的停留秒数，然后点“保存排序与秒数”。此按钮只保存<b>当前分类</b>，其他分类有修改也要分别保存。</li><li><b>逐类预览：</b>检查文字、照片、表格、内容完整性和顺序。所有有内容的分类都要预览；没有内容的分类不需要。</li><li><b>发布：</b>确认无误后点“发布资料”。发布的是<b>整份资料</b>，包含四个分类已有的内容。</li></ol>
+<p>预览后如果又调整内容，请重新保存并预览。发布按钮灰色时，先检查是否有未保存修改、未预览分类、转换中或失败文件。</p>
+<h2>六 修改已有资料</h2>
+<p>进入资料 → 点击<b>编辑资料</b> → 上传、移除或调整内容 → 保存 → 逐类预览 → 再次发布 → 到“屏幕与下发”重新选择并下发。</p>
+<p>图片到时自动进入下一项，视频完整播放一次后进入下一项；最后一项结束后循环。安卓员工可选择SOP、SIP等分类，循环查看当前分类。</p>
+<div class="foot">第2页　文件上传与发布</div>
+</section>
+<section class="page">
+<h1>下发到屏幕并检查结果</h1>
+<h2>七 下发资料</h2>
+<ol><li>进入<b>屏幕与下发</b>，搜索资料名称或编号。</li><li>点击资料前的圆形选框，选择一份已发布资料。</li><li>在“选择接收屏幕”中勾选需要更新的屏幕，可多选；全选前核对是否所有屏幕都适用。</li><li>超时秒数一般保持<b>120</b>，点击<b>下发到所选屏幕</b>。</li><li>检查屏幕“目标”和“实际”资料是否一致，并确认现场屏幕正常显示。</li></ol>
+<p class="note">任务创建成功不等于现场已经播放。“目标”是安排它播放什么，“实际”是屏幕最后回报正在播放什么。应结合在线状态和最后联系时间判断，离线时的“实际”仅是上次记录。</p>
+<h2>八 看懂屏幕状态</h2>
+<table><tr><th>状态或字段</th><th>含义及处理</th></tr><tr><td>在线</td><td>App通信正常；不保证物理面板一定亮屏，重要下发仍需现场确认。</td></tr><tr><td>离线</td><td>一段时间未收到心跳，检查屏幕电源、App和网络。</td></tr><tr><td>未知</td><td>例如中转失联，中心暂时无法判断屏幕状态，请联系维护人员。</td></tr><tr><td>待同步</td><td>目标尚未确认生效；等待下载和回报，持续异常时联系维护人员。</td></tr><tr><td>播放或暂停</td><td>屏幕最后回报的操作状态；员工暂停查看时仍会正常心跳。</td></tr><tr><td>revision 数字</td><td>系统自动生成的安排序号，用来区分新旧安排，无需手工操作。</td></tr></table>
+<p>默认约每10秒通信一次，超过40秒无联系判离线。中转失联时显示未知。中心新版页面时间使用北京时间，旧界面标UTC的时间需加8小时。</p>
+<h2>九 常见情况怎么处理</h2>
+<ul><li><b>下发超时：</b>本次任务结束，目标安排仍保留。屏幕上线后补同步；多次改派只取最新目标。任务未结束前先等完成或超时，再下发新任务。</li><li><b>断网：</b>已下载完整内容的屏幕可继续本地播放，新资料需恢复网络后同步。</li><li><b>删除：</b>仅在确定不再使用时操作。引用中的资料可能被系统阻止删除，按提示处理；不要删除屏幕来解决普通离线问题。屏幕删除入口在下方登记区，默认折叠，建议由管理员操作。</li><li><b>提示旧内容仍被屏幕占用：</b>先让相关屏幕同步到已发布资料，再继续发布，不强行删除文件。</li><li><b>需要报修：</b>提供资料名称、屏幕名称、出现时间和错误提示截图；不要发送密码或密钥。</li></ul>
+<div class="foot">第3页　屏幕下发与日常检查　｜　首次建议先选一台测试屏，确认无误后再批量下发</div>
+</section>
+</main></html>

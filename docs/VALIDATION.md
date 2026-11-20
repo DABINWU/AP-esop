@@ -1,5 +1,9 @@
 # V1 验证记录
 
+## 中心v1.1.7 / 2026-11-20
+
+侧栏底部ESOP CENTER上方增加操作说明链接，在新标签页打开随镜像发布的/static/user-guide.html，支持浏览器打印。内容与docs/ESOP办公室操作说明.html一致，无密码或密钥。无需访问外网，不改变下发协议。回归见test-output/pytest-guide-button.log。群晖需更新源代码并构建后生效。
+
 ## 中心v1.1.6 / 2026-11-17
 
 中心中转最后通信、屏幕最后联系、媒体上传/发布和下发历史/截止时间统一以Asia/Shanghai北京时间显示，缺失或无效日期显示占位。浏览器所在时区不影响显示。后台存储/接口UTC及在线超时计算不变。回归记录test-output/pytest-beijing-time.log。本次不修改Windows安装包或安卓；群晖需拉取更新并重建后生效。
