@@ -119,6 +119,8 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         row(button("退出放大"){image.resetZoom()}.apply {tag="zoom-exit"},muteButton)
         rail.addView(View(this),LinearLayout.LayoutParams(1,0,1f))
         rail.addView(button("管理员"){admin()},LinearLayout.LayoutParams(-1,dp(52)))
+        @Suppress("DEPRECATION")
+        rail.addView(text("版本 v"+packageManager.getPackageInfo(packageName,0).versionName,12f).apply {tag="app-version"},LinearLayout.LayoutParams(-1,dp(28)))
         val railWidth=dp((resources.configuration.screenWidthDp*.22f).toInt().coerceIn(176,280))
         root.addView(scroll,LinearLayout.LayoutParams(railWidth,-1));setContentView(root)
         showCommunication("unknown")
@@ -129,11 +131,19 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         uiScope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
         val config=try {app.settings.load()} catch(e:Exception){null}
-        if(config==null)settings(null) else begin(config)
+        if(config==null)settings(null) else {
+            begin(config)
+        }
     }
     private fun begin(config:DeviceConfig) {
         if(!started)return
         engine?.stop();engine=PlayerEngine(app,config,this).also {it.start()}
+    }
+    override fun onResume() {
+        super.onResume()
+        val policy=getSystemService(android.app.admin.DevicePolicyManager::class.java)
+        val keyguard=getSystemService(android.app.KeyguardManager::class.java)
+        if(!keyguard.isKeyguardLocked && policy.isLockTaskPermitted(packageName))runCatching {startLockTask()}
     }
     override fun onStop() {
         started=false;engine?.stop();engine=null;renderGeneration++;decodeJob?.cancel();uiScope.cancel()
@@ -248,7 +258,14 @@ class MainActivity:ComponentActivity(),PlayerScreen {
         val secret=input(if(old==null)"终端访问密钥" else "终端访问密钥（留空保留原值）",secret=true)
         val pin=input(if(old==null)"设置管理员密码（至少6位）" else "新管理员设置密码（留空不变）",secret=true)
         val confirm=input("确认管理员设置密码",secret=true)
-        val boot=CheckBox(this).apply {text="开机启动适配（新系统可能仅提供启动通知）";isChecked=old?.bootEnabled==true};column.addView(boot)
+        val boot=CheckBox(this).apply {text="开机启动适配（新系统建议同时设为默认主屏幕）";isChecked=old?.bootEnabled ?: true};column.addView(boot)
+        column.addView(button("设置为默认主屏幕（开机进入ESOP）"){
+            runCatching {startActivity(Intent(Settings.ACTION_HOME_SETTINGS))}.onFailure {Toast.makeText(this,"请在系统默认应用中选择ESOP主屏幕",Toast.LENGTH_LONG).show()}
+        })
+        column.addView(button("锁定播放界面"){
+            runCatching {startLockTask()}.onFailure {Toast.makeText(this,"系统不支持锁定，请联系设备管理员",Toast.LENGTH_LONG).show()}
+        })
+        column.addView(button("解除播放锁定") {runCatching {stopLockTask()}})
         val feedback=TextView(this).apply {setTextColor(Color.rgb(150,55,40));text="设备：${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}\n编号不得复用；密钥只在本机加密保存。"};column.addView(feedback)
         fun entered():DeviceConfig {require(pin.text.toString()==confirm.text.toString()){ "管理员设置密码两次输入不同" };return app.settings.create(address.text.toString(),id.text.toString(),secret.text.toString(),pin.text.toString(),old,boot.isChecked)}
         val tools=LinearLayout(this)

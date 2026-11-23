@@ -1,5 +1,9 @@
 # V1 验证记录
 
+## Android1.0.6 / 2026-11-23
+
+增加HOME候选入口、管理员默认桌面设置/锁定/解锁、右侧版本号。新配置开机选项默认勾选，旧配置不强改。经DPC允许且Keyguard已解锁，在onResume启动Lock Task；普通设备只支持需系统确认的屏幕固定。无厂商或Device Owner权限保证，默认桌面不等同严格霸屏。构建测试见test-output/android-tools/build-player-kiosk.log；本次未启动模拟器，现场开机/防切换仍待实机验证。
+
 ## 中心v1.1.9 及中转网页图标 / 2026-11-20
 
 用户提供favicon.ico原样放入中心和中转static目录，登录/管理页及操作说明页显式引用同源ICO；资料库、屏幕下发、历史共用中心页面，均显示图标。离线说明使用docs相对图标。未改鉴权或同步协议。回归见test-output/pytest-favicon.log。中心需重建，中转已安装版本需更新程序资源后显示，旧安装包不会自动改变。
