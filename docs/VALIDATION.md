@@ -1,5 +1,9 @@
 # V1 验证记录
 
+## 中心v1.1.10 / 2026-11-24
+
+修复注销屏幕后历史actual/pending状态仍阻止资料/版本删除的问题。playlist_workflow及资产引用提示排除deleted_devices，但保留原设备、任务与事件。未删除屏幕仍受引用保护。新增回归：实际播放的屏幕阻止删除，注销并重启后可归档资料且历史不变。记录test-output/pytest-deleted-screen-reference.log。未修改现场数据库或删除实际文件；已发布资料删除仍遵循原归档和媒体保留策略。
+
 ## Android1.0.6 / 2026-11-23
 
 增加HOME候选入口、管理员默认桌面设置/锁定/解锁、右侧版本号。新配置开机选项默认勾选，旧配置不强改。经DPC允许且Keyguard已解锁，在onResume启动Lock Task；普通设备只支持需系统确认的屏幕固定。无厂商或Device Owner权限保证，默认桌面不等同严格霸屏。构建测试见test-output/android-tools/build-player-kiosk.log；本次未启动模拟器，现场开机/防切换仍待实机验证。

@@ -46,7 +46,7 @@ def archive_version(db, version_id):
                        if json.loads(a['metadata']).get('attach_version_id')==version_id and a['status']=='deleting']
             return dict(version_id=version_id, archived=True, retained_history=retained, cleanup_pending=pending)
         require_active_playlist(c, version['playlist_id'])
-        devices = [d['device_id'] for d in c.execute('SELECT * FROM devices')
+        devices = [d['device_id'] for d in c.execute('SELECT * FROM devices WHERE device_id NOT IN (SELECT device_id FROM deleted_devices)')
                    if d['actual_version_id']==version_id or d['pending_version_id']==version_id]
         devices += [a[0] for a in c.execute('SELECT device_id FROM assignments WHERE playlist_version_id=?', (version_id,))]
         tasks = [t[0] for t in c.execute("SELECT id FROM tasks WHERE playlist_version_id=? AND status='running'", (version_id,))]
@@ -120,7 +120,7 @@ def archive_playlist(db, playlist_id):
             return dict(playlist_id=playlist_id, archived=True, retained_history=retained, cleanup_pending=pending)
         versions = c.execute('SELECT * FROM versions WHERE playlist_id=?', (playlist_id,)).fetchall()
         vids = {v['id'] for v in versions}
-        devices = [d['device_id'] for d in c.execute('SELECT * FROM devices')
+        devices = [d['device_id'] for d in c.execute('SELECT * FROM devices WHERE device_id NOT IN (SELECT device_id FROM deleted_devices)')
                    if d['actual_version_id'] in vids or d['pending_version_id'] in vids]
         devices += [a['device_id'] for a in c.execute('SELECT * FROM assignments') if a['playlist_version_id'] in vids]
         running = [t['id'] for t in c.execute("SELECT * FROM tasks WHERE status='running'") if t['playlist_version_id'] in vids]

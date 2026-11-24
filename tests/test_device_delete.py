@@ -1,6 +1,24 @@
 from test_center import env, published, register, deploy, timeout, report, send
 
 
+def test_deleted_screen_actual_state_does_not_block_playlist_archive(env):
+    c,db,admin,_=env
+    register(env,('screen00',))
+    v=published(env)
+    task=deploy(env,v,ids=('screen00',)).json()
+    assert send(env,[report(v,task['targets'][0])]).status_code==200
+    path='/api/v1/playlists/'+v['playlist_id']
+    assert c.delete(path,headers=admin).status_code==409
+    assert c.delete('/api/v1/devices/screen00',headers=admin).status_code==200
+    db.initialize()
+    response=c.delete(path,headers=admin)
+    assert response.status_code==200,response.text
+    assert response.json()['retained_history']
+    with db.read() as conn:
+        assert conn.execute('SELECT actual_version_id FROM devices WHERE device_id="screen00"').fetchone()[0]==v['id']
+        assert conn.execute('SELECT COUNT(*) FROM events WHERE device_id="screen00"').fetchone()[0]==1
+
+
 def test_delete_preserves_history_blocks_running_and_survives_restart(env):
     c,db,admin,relay=env
     register(env)

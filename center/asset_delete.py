@@ -26,8 +26,8 @@ def asset_usage(c, asset_id):
         references.append(dict(playlist_version_id=vid, name=version['name'], version=version['version'],
             status=version['status'],
             desired_device_ids=[r[0] for r in c.execute('SELECT device_id FROM assignments WHERE playlist_version_id=? ORDER BY device_id', (vid,))],
-            actual_device_ids=[r[0] for r in c.execute('SELECT device_id FROM devices WHERE actual_version_id=? ORDER BY device_id', (vid,))],
-            pending_device_ids=[r[0] for r in c.execute('SELECT device_id FROM devices WHERE pending_version_id=? ORDER BY device_id', (vid,))],
+            actual_device_ids=[r[0] for r in c.execute('SELECT device_id FROM devices WHERE device_id NOT IN (SELECT device_id FROM deleted_devices) AND actual_version_id=? ORDER BY device_id', (vid,))],
+            pending_device_ids=[r[0] for r in c.execute('SELECT device_id FROM devices WHERE device_id NOT IN (SELECT device_id FROM deleted_devices) AND pending_version_id=? ORDER BY device_id', (vid,))],
             task_count=c.execute('SELECT COUNT(*) FROM tasks WHERE playlist_version_id=?', (vid,)).fetchone()[0]))
     blockers = []
     if asset['status'] in ('retiring','expired'):
