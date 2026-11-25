@@ -290,6 +290,16 @@ def create_app(settings=None):
             result['task_number'] = task_number
             return result
 
+    @app.patch("/api/v1/playlists/{playlist_id}", dependencies=[Depends(admin)])
+    def rename_playlist(playlist_id: str, body: PlaylistCreate):
+        with db.write() as c:
+            row=require_row(c,'playlists','id',playlist_id)
+            if row['archived_at']:
+                raise MediaError('资料已删除归档，不能修改',409)
+            c.execute('UPDATE playlists SET name=?,description=? WHERE id=?',(body.name,body.description,playlist_id))
+            c.execute("UPDATE versions SET name=? WHERE playlist_id=? AND status='draft'",(body.name,playlist_id))
+            return dict(require_row(c,'playlists','id',playlist_id))
+
     @app.get("/api/v1/playlists", dependencies=[Depends(admin)])
     def playlists():
         with db.read() as c:
@@ -321,7 +331,7 @@ def create_app(settings=None):
             number = c.execute("SELECT MAX(version)+1 FROM versions WHERE playlist_id=?", (source["playlist_id"],)).fetchone()[0]
             new_id = uid("ver")
             c.execute("INSERT INTO versions(id,playlist_id,name,version,created_at,items) VALUES(?,?,?,?,?,?)",
-                      (new_id, source["playlist_id"], source["name"], number, now(), source["items"]))
+                      (new_id, source["playlist_id"], require_row(c,'playlists','id',source['playlist_id'])['name'], number, now(), source["items"]))
             return version_view(require_row(c, "versions", "id", new_id))
 
     @app.put("/api/v1/versions/{version_id}/items", dependencies=[Depends(admin)])

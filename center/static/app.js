@@ -83,6 +83,14 @@ function renderPlaylists(){
   if(!result.rows.length){const tr=node('tr'),td=node('td',playlists.length?'没有匹配的资料。':'资料库还没有内容，请先填写上方表单。');td.colSpan=4;tr.append(td);$('playlist-list').append(tr);}
   for(const p of result.rows){const tr=node('tr'),name=node('td'),actions=node('td');name.append(node('strong',p.name));if(p.description)name.append(node('small',p.description));
     const list=versions.filter(v=>v.playlist_id===p.id&&!v.archived_at).sort((a,b)=>b.version-a.version);
+    actions.append(button('修改名称和说明',async()=>{
+      if(dirty){notice('请先保存当前排序与秒数，再修改资料名称。');return;}
+      const name=prompt('修改资料名称（编号及文件不变）',p.name);if(name===null)return;
+      if(!name.trim())throw new Error('资料名称不能为空');
+      const description=prompt('修改说明（可留空）',p.description||'');if(description===null)return;
+      await json('/playlists/'+p.id,{method:'PATCH',body:{name:name.trim(),description}});await refresh();
+      notice('名称和说明已修改；已发布资料在屏幕上的原名称保持不变，需编辑、发布并重新下发后更新。');
+    }));
     actions.append(button('进入资料',()=>{if(dirty&&!confirm('放弃未保存改动并切换资料条目？'))return;chooseVersion(list[0]);renderVersionSelectors();$('editor').scrollIntoView({block:'start',behavior:'smooth'});}));
     const remove=button('删除',async()=>{if(!confirm(`删除资料条目“${p.name}”？\n活动屏幕引用会阻止删除；发布历史会归档保留；无发布历史的专属文件将清理。`))return;const result=await json('/playlists/'+p.id,{method:'DELETE'});if(current?.playlist_id===p.id)chooseVersion(null);await refresh();notice(result.cleanup_pending.length?'资料条目已归档，部分文件清理未完成，系统会重试。':(result.retained_history?'资料条目已删除归档，发布历史及文件保留。':'资料条目及无引用专属文件已删除。'));});remove.className='danger';actions.append(remove);
     tr.append(name,node('td',p.task_number || '—'),node('td',list[0]?.status==='draft'?(list.some(v=>v.status==='published')?'有待发布修改':'待发布'):'已发布'),actions);$('playlist-list').append(tr);
