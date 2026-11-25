@@ -89,7 +89,7 @@ function renderPlaylists(){
   }
 }
 $('rename-library').onclick=safe(async()=>{
-  if(!current)return;
+  if(!current || current.status!=='draft')return;
   const p=playlists.find(p=>p.id===current.playlist_id);if(!p)return;
 
       if(dirty){notice('请先保存当前排序与秒数，再修改资料名称。');return;}
@@ -97,7 +97,8 @@ $('rename-library').onclick=safe(async()=>{
       if(!name.trim())throw new Error('资料名称不能为空');
       const description=prompt('修改说明（可留空）',p.description||'');if(description===null)return;
       await json('/playlists/'+p.id,{method:'PATCH',body:{name:name.trim(),description}});await refresh();
-      notice('名称和说明已修改；已发布资料在屏幕上的原名称保持不变，需编辑、发布并重新下发后更新。');
+      dirty=true;previewed=false;previewedModules.clear();renderEditor();
+      notice('名称和说明已修改，请保存排序与秒数，预览各有内容模块后发布，再重新下发。');
     
 });
 $('refresh').onclick = safe(refresh);
@@ -184,6 +185,7 @@ function renderEditor() {
   $('upload-form').hidden = !draft; $('save-version').hidden = !draft; $('publish-version').hidden = !draft;
   $('publish-version').disabled = !previewed || dirty || !items.length;
   $('edit-library').hidden=draft;
+  $('rename-library').hidden=!draft;
   $('editor-hint').hidden = !dirty;
   $('editor-hint').textContent = draft ? (dirty ? '有未保存排序或秒数改动。' : '请预览所有有内容的模块后发布；转换中或失败文件会阻止发布。') : '资料已发布。需要继续维护时，请点击“编辑资料”。';
   $('module-tabs').replaceChildren();
